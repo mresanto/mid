@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::core::databases::adapters::DatabaseType;
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct MidConfigFile {
     pub active_remote: Option<String>,
@@ -34,5 +36,18 @@ impl MidConfigFile {
 
     pub fn set_active_database(&mut self, name: String) {
         self.active_remote = Some(name);
+    }
+
+    pub fn get_database_type(&self) -> Option<DatabaseType> {
+        let active_db = self.get_active_database()?;
+
+        let database_type = active_db.connection_string.split(':').next()?;
+
+        match database_type {
+            "postgres" | "postgresql" => Some(DatabaseType::Postgres),
+            "mysql" => Some(DatabaseType::MySQL),
+            "sqlite" => Some(DatabaseType::SQLite),
+            _ => None,
+        }
     }
 }
