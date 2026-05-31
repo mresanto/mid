@@ -1,9 +1,6 @@
 use std::io;
 
-use super::{
-    create::{add_remote_config_to_global_file, add_remote_config_to_local_file},
-    types::CreateNewConfigOptions,
-};
+use super::{create, types::CreateNewConfigOptions};
 
 /// Use this method to create a new remote configuration for a user. The remote configuration will
 /// be used to connect to the user's remote server and fetch data from it. The remote configuration
@@ -12,13 +9,13 @@ use super::{
 ///
 /// This function only appends new configs, don't override existing ones. If a config with the same
 /// name already exists, it return an error.
-pub fn add_remote_config(options: CreateNewConfigOptions) -> io::Result<()> {
+pub fn add_remote_config(options: CreateNewConfigOptions) -> Result<(), create::Error> {
     if options.global {
-        add_remote_config_to_global_file(options);
+        create::add_remote_config_to_global_file(options)?;
         return Ok(());
     }
 
-    add_remote_config_to_local_file(options);
+    create::add_remote_config_to_local_file(options)?;
 
     return Ok(());
 }
