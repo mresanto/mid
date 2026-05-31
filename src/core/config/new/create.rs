@@ -58,10 +58,14 @@ pub fn add_remote_to_file(file_path: String, options: CreateNewConfigOptions) ->
         Err(e) => Err(Error::Io(e)),
     }?;
 
+    // TODO: Add Validation to assert that name is unique, and connection string is valid.
+
     content.databases.push(DatabaseConfig {
         connection_string: options.connection_string,
-        name: options.name,
+        name: options.name.clone(),
     });
+
+    content.active_remote = Some(options.name);
 
     let config_string = toml::to_string_pretty(&content)?;
 
