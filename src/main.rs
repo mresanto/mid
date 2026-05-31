@@ -1,6 +1,9 @@
-use std::path::PathBuf;
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
+use crate::cli::commands::remote::{RemoteCommands, handle_remote_command};
+
+mod cli;
 mod core;
 
 #[derive(Parser)]
@@ -28,6 +31,11 @@ enum Commands {
         /// lists test values
         #[arg(short, long)]
         list: bool,
+    },
+
+    Remote {
+        #[command(subcommand)]
+        command: Option<RemoteCommands>,
     },
 }
 
@@ -62,8 +70,8 @@ fn main() {
                 println!("Not printing testing lists...");
             }
         }
+
+        Some(Commands::Remote { command }) => handle_remote_command(command),
         None => {}
     }
-
-    // Continued program logic goes here...
 }
