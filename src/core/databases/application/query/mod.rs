@@ -5,6 +5,15 @@ use crate::core::{
     databases::adapters::{DatabaseType, postgres::query::execute_postgres_query},
 };
 
+#[derive(Debug, Clone)]
+pub enum DbValue {
+    Null,
+    Text(String),
+    Integer(i64),
+    Float(f64),
+    Boolean(bool),
+}
+
 pub struct RunQueryOnDatabaseCommandOptions {
     pub query: String,
 }
