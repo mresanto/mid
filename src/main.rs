@@ -1,6 +1,7 @@
 use std::path::PathBuf;
-
 use clap::{Parser, Subcommand};
+
+mod core;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
