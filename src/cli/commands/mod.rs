@@ -2,6 +2,7 @@ use clap::Subcommand;
 
 use crate::cli::commands::remote::RemoteCommands;
 
+pub mod list;
 pub mod remote;
 pub mod status;
 
@@ -20,4 +21,9 @@ pub enum Commands {
     },
 
     Status {},
+
+    List {
+        #[command(subcommand)]
+        command: Option<list::ListCommands>,
+    },
 }

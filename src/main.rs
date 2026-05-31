@@ -2,7 +2,10 @@ use clap::Parser;
 
 use crate::cli::{
     Cli,
-    commands::{Commands, remote::handle_remote_command, status::handle_status_command},
+    commands::{
+        Commands, list::handle_list_command, remote::handle_remote_command,
+        status::handle_status_command,
+    },
 };
 
 mod cli;
@@ -32,6 +35,7 @@ fn main() {
         }
 
         Some(Commands::Remote { command }) => handle_remote_command(command),
+        Some(Commands::List { command }) => handle_list_command(command),
         Some(Commands::Status {}) => handle_status_command(),
         None => {}
     }
