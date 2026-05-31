@@ -1,5 +1,6 @@
 use crate::core::{
     config::{
+        manage,
         new::types::CreateNewConfigOptions,
         types::{DatabaseConfig, MidConfigFile},
     },
@@ -16,6 +17,9 @@ pub enum Error {
 
     #[error("Failed to serialize global config file: {0}")]
     TomlDeserialize(#[from] toml::de::Error),
+
+    #[error("Fail to save the file")]
+    SaveFileError(#[from] manage::Error),
 
     #[error("Failed to read global config file: {0}")]
     Io(#[from] io::Error),
@@ -66,10 +70,7 @@ pub fn add_remote_to_file(file_path: String, options: CreateNewConfigOptions) ->
     });
 
     content.active_remote = Some(options.name);
-
-    let config_string = toml::to_string_pretty(&content)?;
-
-    fs::write(file_path, config_string)?;
+    manage::save_config(file_path, content)?;
 
     return Ok(());
 }

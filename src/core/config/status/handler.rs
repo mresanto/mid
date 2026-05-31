@@ -16,7 +16,12 @@ pub enum Error {
     Io(#[from] io::Error),
 }
 
-pub fn get_current_config() -> Result<MidConfigFile, Error> {
+pub struct GetCurrentConfigResponse {
+    pub config: MidConfigFile,
+    pub path: String,
+}
+
+pub fn get_current_config() -> Result<GetCurrentConfigResponse, Error> {
     let file_path = globals::get_global_config_file_path();
 
     let contents = fs::read_to_string(&file_path)?;
@@ -26,7 +31,10 @@ pub fn get_current_config() -> Result<MidConfigFile, Error> {
     let active_connection = config.get_active_database();
 
     match active_connection {
-        Some(_) => Ok(config),
+        Some(_) => Ok(GetCurrentConfigResponse {
+            config,
+            path: file_path,
+        }),
         None => Err(Error::NoActiveRemote),
     }
 }
@@ -49,6 +57,6 @@ mod tests {
 
         let config = get_current_config().expect("Failed to get current config");
 
-        assert_eq!(config.active_remote, Some("test".to_string()));
+        assert_eq!(config.config.active_remote, Some("test".to_string()));
     }
 }

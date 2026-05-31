@@ -5,7 +5,7 @@ pub fn handle_status_command() {
 
     match current_config {
         Ok(config) => {
-            let active_remote = config.get_active_database();
+            let active_remote = config.config.get_active_database();
 
             match active_remote {
                 Some(remote) => println!("Active remote: {}", remote.name),

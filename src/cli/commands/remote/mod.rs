@@ -1,6 +1,9 @@
 use clap::Subcommand;
 
-use crate::core::config::new::{handler::add_remote_config, types::CreateNewConfigOptions};
+use crate::core::config::{
+    new::{handler::add_remote_config, types::CreateNewConfigOptions},
+    switch::handler::{ChangeConnectionOptions, switch_connection},
+};
 
 #[derive(Subcommand)]
 pub enum RemoteCommands {
@@ -12,6 +15,10 @@ pub enum RemoteCommands {
         name: Option<String>,
         // #[arg(short, long)]
         // global: bool,
+    },
+    Switch {
+        #[arg()]
+        name: String,
     },
 }
 
@@ -37,6 +44,18 @@ pub fn handle_remote_command(command: &Option<RemoteCommands>) {
                 Ok(_) => println!("Remote config added successfully"),
                 Err(e) => eprintln!("Failed to add remote config: {e}"),
             }
+        }
+        Some(RemoteCommands::Switch { name }) => {
+            let res = switch_connection(ChangeConnectionOptions {
+                connection_name: name.clone(),
+            });
+
+            match res {
+                Ok(_) => println!("Switched active connection to {}", name),
+                Err(e) => eprintln!("Failed to switch active connection: {e}"),
+            }
+
+            return;
         }
         None => {}
     }

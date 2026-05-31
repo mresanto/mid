@@ -27,4 +27,12 @@ impl MidConfigFile {
 
         self.databases.iter().find(|db| db.name == *active_db_name)
     }
+
+    pub fn connection_exists(&self, name: &str) -> bool {
+        self.databases.iter().any(|db| db.name == name)
+    }
+
+    pub fn set_active_database(&mut self, name: String) {
+        self.active_remote = Some(name);
+    }
 }
