@@ -20,3 +20,11 @@ impl Default for MidConfigFile {
         }
     }
 }
+
+impl MidConfigFile {
+    pub fn get_active_database(&self) -> Option<&DatabaseConfig> {
+        let active_db_name = self.active_remote.as_ref()?;
+
+        self.databases.iter().find(|db| db.name == *active_db_name)
+    }
+}
