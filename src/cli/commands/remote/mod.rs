@@ -2,8 +2,6 @@ use clap::Subcommand;
 
 use crate::core::config::new::{handler::add_remote_config, types::CreateNewConfigOptions};
 
-pub mod add;
-
 #[derive(Subcommand)]
 pub enum RemoteCommands {
     Add {

@@ -1,7 +1,10 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-use crate::cli::commands::remote::{RemoteCommands, handle_remote_command};
+use crate::cli::commands::{
+    remote::{RemoteCommands, handle_remote_command},
+    status::handle_status_command,
+};
 
 mod cli;
 mod core;
@@ -37,6 +40,8 @@ enum Commands {
         #[command(subcommand)]
         command: Option<RemoteCommands>,
     },
+
+    Status {},
 }
 
 fn main() {
@@ -51,15 +56,6 @@ fn main() {
         println!("Value for config: {}", config_path.display());
     }
 
-    // You can see how many times a particular flag or argument occurred
-    // Note, only flags can have multiple occurrences
-    match cli.debug {
-        0 => println!("Debug mode is off"),
-        1 => println!("Debug mode is kind of on"),
-        2 => println!("Debug mode is on"),
-        _ => println!("Don't be crazy"),
-    }
-
     // You can check for the existence of subcommands, and if found use their
     // matches just as you would the top level cmd
     match &cli.command {
@@ -72,6 +68,7 @@ fn main() {
         }
 
         Some(Commands::Remote { command }) => handle_remote_command(command),
+        Some(Commands::Status {}) => handle_status_command(),
         None => {}
     }
 }

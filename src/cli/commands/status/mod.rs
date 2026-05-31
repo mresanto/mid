@@ -1,0 +1,17 @@
+use crate::core::config::status::handler::get_current_config;
+
+pub fn handle_status_command() {
+    let current_config = get_current_config();
+
+    match current_config {
+        Ok(config) => {
+            let active_remote = config.get_active_database();
+
+            match active_remote {
+                Some(remote) => println!("Active remote: {}", remote.name),
+                None => println!("No active remote found in the config file"),
+            }
+        }
+        Err(e) => eprintln!("Failed to get current config: {e}"),
+    }
+}
