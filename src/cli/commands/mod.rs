@@ -3,6 +3,7 @@ use clap::Subcommand;
 use crate::cli::commands::remote::RemoteCommands;
 
 pub mod list;
+pub mod query;
 pub mod remote;
 pub mod status;
 
@@ -25,5 +26,10 @@ pub enum Commands {
     List {
         #[command(subcommand)]
         command: Option<list::ListCommands>,
+    },
+
+    Query {
+        #[arg()]
+        query: String,
     },
 }
