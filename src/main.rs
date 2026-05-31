@@ -1,48 +1,12 @@
-use clap::{Parser, Subcommand};
-use std::path::PathBuf;
+use clap::Parser;
 
-use crate::cli::commands::{
-    remote::{RemoteCommands, handle_remote_command},
-    status::handle_status_command,
+use crate::cli::{
+    Cli,
+    commands::{Commands, remote::handle_remote_command, status::handle_status_command},
 };
 
 mod cli;
 mod core;
-
-#[derive(Parser)]
-#[command(version, about, long_about = None)]
-struct Cli {
-    /// Optional name to operate on
-    name: Option<String>,
-
-    /// Sets a custom config file
-    #[arg(short, long, value_name = "FILE")]
-    config: Option<PathBuf>,
-
-    /// Turn debugging information on
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    debug: u8,
-
-    #[command(subcommand)]
-    command: Option<Commands>,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// does testing things
-    Test {
-        /// lists test values
-        #[arg(short, long)]
-        list: bool,
-    },
-
-    Remote {
-        #[command(subcommand)]
-        command: Option<RemoteCommands>,
-    },
-
-    Status {},
-}
 
 fn main() {
     let cli = Cli::parse();
