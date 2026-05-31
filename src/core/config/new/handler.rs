@@ -1,5 +1,3 @@
-use std::io;
-
 use super::{create, types::CreateNewConfigOptions};
 
 /// Use this method to create a new remote configuration for a user. The remote configuration will

@@ -39,6 +39,7 @@ pub fn get_current_config() -> Result<GetCurrentConfigResponse, Error> {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use crate::core::config::new::handler;
     use crate::core::config::new::types::CreateNewConfigOptions;

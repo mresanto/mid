@@ -75,6 +75,7 @@ pub fn add_remote_to_file(file_path: String, options: CreateNewConfigOptions) ->
     return Ok(());
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -89,8 +90,6 @@ mod tests {
         add_remote_config_to_global_file(options)
             .expect("Failed to add remote config to global file");
     }
-
-    use super::*;
 
     #[test]
     fn test_add_remote_config_local() {
