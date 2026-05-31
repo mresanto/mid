@@ -12,8 +12,8 @@ pub enum Error {
     ExecuteQuery(#[from] query::Error),
 }
 
-pub fn handle_query_command(options: QueryCommandOptions) -> () {
-    let res = execute(options);
+pub async fn handle_query_command(options: QueryCommandOptions) -> () {
+    let res = execute(options).await;
 
     match res {
         Ok(_) => {}
@@ -21,10 +21,11 @@ pub fn handle_query_command(options: QueryCommandOptions) -> () {
     }
 }
 
-fn execute(options: QueryCommandOptions) -> Result<(), Error> {
+async fn execute(options: QueryCommandOptions) -> Result<(), Error> {
     query::execute_query_on_database(query::RunQueryOnDatabaseCommandOptions {
         query: options.query,
-    })?;
+    })
+    .await?;
 
     return Ok(());
 }

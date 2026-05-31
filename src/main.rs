@@ -14,7 +14,8 @@ use crate::cli::{
 mod cli;
 mod core;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
 
     // You can check the value provided by positional arguments, or option arguments
@@ -40,9 +41,12 @@ fn main() {
         Some(Commands::Remote { command }) => handle_remote_command(command),
         Some(Commands::List { command }) => handle_list_command(command),
         Some(Commands::Status {}) => handle_status_command(),
-        Some(Commands::Query { query }) => handle_query_command(QueryCommandOptions {
-            query: query.to_string(),
-        }),
+        Some(Commands::Query { query }) => {
+            handle_query_command(QueryCommandOptions {
+                query: query.to_string(),
+            })
+            .await
+        }
         None => {}
     }
 }

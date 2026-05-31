@@ -1,3 +1,5 @@
+pub mod postgres;
+
 /// This module contains the database connection and related functionality.
 pub enum DatabaseType {
     /// The Postgres database type.
