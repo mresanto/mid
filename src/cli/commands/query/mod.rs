@@ -1,8 +1,12 @@
-use std::collections::HashMap;
-
 use thiserror::Error;
 
-use crate::core::databases::application::query::{self, DbValue};
+use crate::{
+    cli::commands::query::{json::render_output_as_json, table::render_outout_as_table},
+    core::databases::application::query::{self},
+};
+
+mod json;
+mod table;
 
 #[derive(Debug, Clone)]
 pub enum QueryOutputFormat {
@@ -57,41 +61,12 @@ async fn execute(options: QueryCommandOptions) -> Result<(), Error> {
 
     match options.output_format {
         QueryOutputFormat::Table => {
-            // Get the column names from the first row, or use an empty vector if there are no rows
+            render_outout_as_table(items);
         }
         QueryOutputFormat::Json => {
-            let json_elements = format_to_json_elements(items);
-
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&serde_json::Value::Array(json_elements)).unwrap()
-            );
+            render_output_as_json(items);
         }
     }
 
     return Ok(());
-}
-
-fn format_to_json_elements(items: Vec<HashMap<String, DbValue>>) -> Vec<serde_json::Value> {
-    let json_elements: Vec<serde_json::Value> = items
-        .iter()
-        .map(|row| {
-            let mut map = serde_json::Map::new();
-            for (k, v) in row {
-                let json_val = match v {
-                    DbValue::Null => serde_json::Value::Null,
-                    DbValue::Text(s) => serde_json::Value::String(s.clone()),
-                    DbValue::Integer(n) => serde_json::Value::Number((*n).into()),
-                    DbValue::Float(f) => serde_json::Number::from_f64(*f)
-                        .map(serde_json::Value::Number)
-                        .unwrap_or(serde_json::Value::Null),
-                    DbValue::Boolean(b) => serde_json::Value::Bool(*b),
-                };
-                map.insert(k.clone(), json_val);
-            }
-            serde_json::Value::Object(map)
-        })
-        .collect();
-
-    json_elements
 }
