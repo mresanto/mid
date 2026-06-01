@@ -80,6 +80,14 @@ pub async fn execute_postgres_query(
                             .try_get::<String, _>(column_name)
                             .map(DbValue::Text)
                             .unwrap_or(DbValue::Null),
+                        "_TEXT" | "TEXT[]" => row
+                            .try_get::<Vec<String>, _>(column_name)
+                            .map(DbValue::TextArray)
+                            .unwrap_or(DbValue::Null),
+                        "NUMERIC" => row
+                            .try_get::<String, _>(column_name)
+                            .map(DbValue::Numeric)
+                            .unwrap_or(DbValue::Null),
                         "INT2" | "INT4" | "INTEGER" => row
                             .try_get::<i32, _>(column_name)
                             .map(|n| DbValue::Integer(n as i64))

@@ -20,6 +20,13 @@ fn format_to_json_elements(items: Vec<HashMap<String, DbValue>>) -> Vec<serde_js
                 let json_val = match v {
                     DbValue::Null => serde_json::Value::Null,
                     DbValue::Text(s) => serde_json::Value::String(s.clone()),
+                    DbValue::TextArray(values) => serde_json::Value::Array(
+                        values
+                            .iter()
+                            .map(|value| serde_json::Value::String(value.clone()))
+                            .collect(),
+                    ),
+                    DbValue::Numeric(value) => serde_json::Value::String(value.clone()),
                     DbValue::Integer(n) => serde_json::Value::Number((*n).into()),
                     DbValue::Float(f) => serde_json::Number::from_f64(*f)
                         .map(serde_json::Value::Number)

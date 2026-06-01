@@ -180,6 +180,10 @@ fn format_db_value(value: &DbValue) -> String {
     match value {
         DbValue::Null => "null".to_string(),
         DbValue::Text(value) => value.clone(),
+        DbValue::TextArray(values) => {
+            format!("{{{}}}", values.join(","))
+        }
+        DbValue::Numeric(value) => value.clone(),
         DbValue::Integer(value) => value.to_string(),
         DbValue::Float(value) => {
             if value.is_finite() {

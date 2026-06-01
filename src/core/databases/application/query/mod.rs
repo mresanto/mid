@@ -11,6 +11,8 @@ use crate::core::{
 pub enum DbValue {
     Null,
     Text(String),
+    TextArray(Vec<String>),
+    Numeric(String),
     Integer(i64),
     Float(f64),
     Boolean(bool),
