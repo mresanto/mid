@@ -31,5 +31,7 @@ pub enum Commands {
     Query {
         #[arg()]
         query: String,
+        #[arg(short, long)]
+        output_format: Option<query::QueryOutputFormat>,
     },
 }

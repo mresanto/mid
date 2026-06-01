@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use thiserror::Error;
 
 use crate::core::{
@@ -22,32 +24,40 @@ pub struct RunQueryOnDatabaseCommandOptions {
 pub enum Error {
     #[error("Failed to read config file: {0}")]
     CurrentConfigError(#[from] status::handler::Error),
+
+    #[error(
+        "Cant find an active remote connection. Please set an active connection before running a query."
+    )]
+    NoActiveRemoteConnection,
+
+    #[error("Failed to execute query")]
+    FailedToExecuteQuery(),
 }
 
 pub async fn execute_query_on_database(
     options: RunQueryOnDatabaseCommandOptions,
-) -> Result<(), Error> {
+) -> Result<Vec<HashMap<String, DbValue>>, Error> {
     let config = status::get_current_config()?;
 
     let active_database = config.config.get_active_database();
 
     if active_database.is_none() {
-        println!(
-            "No active database connection found. Please set an active connection before running a query."
-        );
-        return Ok(());
+        return Err(Error::NoActiveRemoteConnection);
     }
 
     let active_database = active_database.unwrap();
 
-    match config.config.get_database_type() {
+    let response = match config.config.get_database_type() {
         Some(database_type) => match database_type {
             DatabaseType::Postgres => {
                 let res = execute_postgres_query(active_database, options.query).await;
 
                 if res.is_err() {
                     eprintln!("Failed to execute query on PostgreSQL: {res:?}");
+                    return Err(Error::FailedToExecuteQuery());
                 }
+
+                res.unwrap()
             }
             DatabaseType::MySQL => {
                 panic!("mysql adapter not implemented yet");
@@ -57,9 +67,9 @@ pub async fn execute_query_on_database(
             }
         },
         None => {
-            println!("Unsupported or unknown database type.");
+            return Err(Error::NoActiveRemoteConnection);
         }
     };
 
-    return Ok(());
+    return Ok(response);
 }

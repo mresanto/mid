@@ -12,7 +12,10 @@ pub enum Error {
 }
 
 /// Use this method to run an arbitrary query on the active database connection.
-pub async fn execute_postgres_query(config: &DatabaseConfig, query: String) -> Result<(), Error> {
+pub async fn execute_postgres_query(
+    config: &DatabaseConfig,
+    query: String,
+) -> Result<Vec<HashMap<String, DbValue>>, Error> {
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(&config.connection_string)
@@ -81,5 +84,5 @@ pub async fn execute_postgres_query(config: &DatabaseConfig, query: String) -> R
         parsed_rows.push(row_map);
     }
 
-    return Ok(());
+    return Ok(parsed_rows);
 }
