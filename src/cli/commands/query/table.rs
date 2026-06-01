@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use color_eyre::Result;
 use crossterm::event::{self, KeyCode};
@@ -56,30 +56,17 @@ pub fn render_table(
     table_state: &mut TableState,
     items: &Vec<HashMap<String, DbValue>>,
 ) {
-    let header = Row::new(["Ingredient", "Quantity", "Macros"])
+    let (headers, row_values) = format_to_table_elements(items);
+
+    let header = Row::new(headers.clone())
         .style(Style::new().bold())
         .bottom_margin(1);
 
-    let rows = [
-        Row::new(["Eggplant", "1 medium", "25 kcal, 6g carbs, 1g protein"]),
-        Row::new(["Tomato", "2 large", "44 kcal, 10g carbs, 2g protein"]),
-        Row::new(["Zucchini", "1 medium", "33 kcal, 7g carbs, 2g protein"]),
-        Row::new(["Bell Pepper", "1 medium", "24 kcal, 6g carbs, 1g protein"]),
-        Row::new(["Garlic", "2 cloves", "9 kcal, 2g carbs, 0.4g protein"]),
-    ];
-    let footer = Row::new([
-        "Ratatouille Recipe",
-        "",
-        "135 kcal, 31g carbs, 6.4g protein",
-    ]);
-    let widths = [
-        Constraint::Percentage(30),
-        Constraint::Percentage(20),
-        Constraint::Percentage(50),
-    ];
+    let rows: Vec<Row> = row_values.into_iter().map(Row::new).collect();
+    let widths: Vec<Constraint> = headers.iter().map(|_| Constraint::Fill(1)).collect();
+
     let table = Table::new(rows, widths)
         .header(header)
-        .footer(footer.italic())
         .column_spacing(1)
         .style(Color::White)
         .row_highlight_style(Style::new().on_black().bold())
@@ -88,4 +75,52 @@ pub fn render_table(
         .highlight_symbol("🍴 ");
 
     frame.render_stateful_widget(table, area, table_state);
+}
+
+fn format_to_table_elements(items: &[HashMap<String, DbValue>]) -> (Vec<String>, Vec<Vec<String>>) {
+    let headers: Vec<String> = items
+        .iter()
+        .flat_map(|row| row.keys().cloned())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+
+    if headers.is_empty() {
+        return (
+            vec!["result".to_string()],
+            vec![vec!["No rows".to_string()]],
+        );
+    }
+
+    let rows = items
+        .iter()
+        .map(|row| {
+            headers
+                .iter()
+                .map(|header| {
+                    row.get(header)
+                        .map(format_db_value)
+                        .unwrap_or_else(|| "null".to_string())
+                })
+                .collect::<Vec<String>>()
+        })
+        .collect::<Vec<Vec<String>>>();
+
+    (headers, rows)
+}
+
+fn format_db_value(value: &DbValue) -> String {
+    match value {
+        DbValue::Null => "null".to_string(),
+        DbValue::Text(value) => value.clone(),
+        DbValue::Integer(value) => value.to_string(),
+        DbValue::Float(value) => {
+            if value.is_finite() {
+                value.to_string()
+            } else {
+                "null".to_string()
+            }
+        }
+        DbValue::Boolean(value) => value.to_string(),
+    }
 }
