@@ -14,18 +14,31 @@ pub fn render_outout_as_table(items: Vec<HashMap<String, DbValue>>) -> Result<()
     color_eyre::install()?;
 
     let mut table_state = TableState::default();
+    let mut column_offset = 0usize;
+    let mut selected_column = 0usize;
     table_state.select_first();
-    table_state.select_first_column();
     ratatui::run(|terminal| {
         loop {
-            terminal.draw(|frame| render(frame, &mut table_state, &items))?;
+            terminal.draw(|frame| {
+                render(
+                    frame,
+                    &mut table_state,
+                    &mut column_offset,
+                    &mut selected_column,
+                    &items,
+                )
+            })?;
             if let Some(key) = event::read()?.as_key_press_event() {
                 match key.code {
                     KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
                     KeyCode::Char('j') | KeyCode::Down => table_state.select_next(),
                     KeyCode::Char('k') | KeyCode::Up => table_state.select_previous(),
-                    KeyCode::Char('l') | KeyCode::Right => table_state.select_next_column(),
-                    KeyCode::Char('h') | KeyCode::Left => table_state.select_previous_column(),
+                    KeyCode::Char('l') | KeyCode::Right => {
+                        selected_column = selected_column.saturating_add(1)
+                    }
+                    KeyCode::Char('h') | KeyCode::Left => {
+                        selected_column = selected_column.saturating_sub(1)
+                    }
                     KeyCode::Char('g') => table_state.select_first(),
                     KeyCode::Char('G') => table_state.select_last(),
                     _ => {}
@@ -36,17 +49,30 @@ pub fn render_outout_as_table(items: Vec<HashMap<String, DbValue>>) -> Result<()
 }
 
 /// Render the UI with a table.
-fn render(frame: &mut Frame, table_state: &mut TableState, items: &Vec<HashMap<String, DbValue>>) {
+fn render(
+    frame: &mut Frame,
+    table_state: &mut TableState,
+    column_offset: &mut usize,
+    selected_column: &mut usize,
+    items: &[HashMap<String, DbValue>],
+) {
     let layout = Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).spacing(1);
     let [top, main] = frame.area().layout(&layout);
 
     let title = Line::from_iter([
         Span::from("Table Widget").bold(),
-        Span::from(" (Press 'q' to quit and arrow keys to navigate)"),
+        Span::from(" (Press 'q' to quit, j/k rows, h/l columns)"),
     ]);
     frame.render_widget(title.centered(), top);
 
-    render_table(frame, main, table_state, items);
+    render_table(
+        frame,
+        main,
+        table_state,
+        column_offset,
+        selected_column,
+        items,
+    );
 }
 
 /// Render a table with some rows and columns.
@@ -54,26 +80,67 @@ pub fn render_table(
     frame: &mut Frame,
     area: Rect,
     table_state: &mut TableState,
-    items: &Vec<HashMap<String, DbValue>>,
+    column_offset: &mut usize,
+    selected_column: &mut usize,
+    items: &[HashMap<String, DbValue>],
 ) {
-    let (headers, row_values) = format_to_table_elements(items);
+    const COLUMN_WIDTH: u16 = 20;
+    const COLUMN_SPACING: u16 = 1;
 
-    let header = Row::new(headers.clone())
+    let (headers, row_values) = format_to_table_elements(items);
+    let max_selected_column = headers.len().saturating_sub(1);
+    *selected_column = (*selected_column).min(max_selected_column);
+
+    let visible_columns = ((area.width.saturating_add(COLUMN_SPACING))
+        / (COLUMN_WIDTH + COLUMN_SPACING))
+        .max(1) as usize;
+
+    if *selected_column < *column_offset {
+        *column_offset = *selected_column;
+    } else if *selected_column >= *column_offset + visible_columns {
+        *column_offset = selected_column
+            .saturating_add(1)
+            .saturating_sub(visible_columns);
+    }
+
+    let max_offset = headers.len().saturating_sub(visible_columns);
+    *column_offset = (*column_offset).min(max_offset);
+    let visible_end = (*column_offset + visible_columns).min(headers.len());
+    let selected_visible_column = selected_column.saturating_sub(*column_offset);
+
+    let visible_headers = headers[*column_offset..visible_end].to_vec();
+
+    let header = Row::new(visible_headers.clone())
         .style(Style::new().bold())
         .bottom_margin(1);
 
-    let rows: Vec<Row> = row_values.into_iter().map(Row::new).collect();
-    let widths: Vec<Constraint> = headers.iter().map(|_| Constraint::Fill(1)).collect();
+    let rows: Vec<Row> = row_values
+        .into_iter()
+        .map(|row| {
+            Row::new(
+                row.into_iter()
+                    .skip(*column_offset)
+                    .take(visible_columns)
+                    .collect::<Vec<String>>(),
+            )
+        })
+        .collect();
+    let widths: Vec<Constraint> = visible_headers
+        .iter()
+        .map(|_| Constraint::Length(COLUMN_WIDTH))
+        .collect();
 
     let table = Table::new(rows, widths)
         .header(header)
-        .column_spacing(1)
+        .column_spacing(COLUMN_SPACING)
         .style(Color::White)
         .row_highlight_style(Style::new().on_black().bold())
         .column_highlight_style(Color::Gray)
         .cell_highlight_style(Style::new().reversed().yellow())
-        .highlight_symbol("🍴 ");
+        .highlight_symbol("> ")
+        ;
 
+    table_state.select_column(Some(selected_visible_column));
     frame.render_stateful_widget(table, area, table_state);
 }
 
