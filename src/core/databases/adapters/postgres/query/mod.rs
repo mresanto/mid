@@ -128,3 +128,14 @@ pub async fn execute_postgres_query(
 
     return Ok(parsed_rows);
 }
+
+pub fn list_tables_query() -> String {
+    return "
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_type = 'BASE TABLE'
+          AND table_schema NOT IN ('pg_catalog', 'information_schema')
+        ORDER BY table_schema, table_name;
+        "
+    .to_string();
+}

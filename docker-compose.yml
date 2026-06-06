@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: mid-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: mid_test
+    ports:
+      - "5432:5432"
+    volumes:
+      - mid-postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mid -d mid_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mysql:
+    image: mysql:9
+    container_name: mid-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: mid_test
+      MYSQL_USER: test
+      MYSQL_PASSWORD: test
+    ports:
+      - "3306:3306"
+    volumes:
+      - mid-mysql-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-umid", "-pmid"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mid-postgres-data:
+  mid-mysql-data:

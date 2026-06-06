@@ -24,8 +24,10 @@ pub enum Commands {
     Status {},
 
     List {
-        #[command(subcommand)]
-        command: Option<list::ListCommands>,
+        // #[command(subcommand)]
+        // command: Option<list::ListCommands>,
+        #[arg(short, long)]
+        output_format: Option<query::QueryOutputFormat>,
     },
 
     Query {

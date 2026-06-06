@@ -1,14 +1,17 @@
 use clap::Parser;
 
-use crate::cli::{
-    Cli,
-    commands::{
-        Commands,
-        list::handle_list_command,
-        query::{QueryCommandOptions, QueryOutputFormat, handle_query_command},
-        remote::handle_remote_command,
-        status::handle_status_command,
+use crate::{
+    cli::{
+        Cli,
+        commands::{
+            Commands,
+            list::handle_list_command,
+            query::{QueryCommandOptions, QueryOutputFormat, handle_query_command},
+            remote::handle_remote_command,
+            status::handle_status_command,
+        },
     },
+    core::databases::application::query,
 };
 
 mod cli;
@@ -39,7 +42,15 @@ async fn main() {
         }
 
         Some(Commands::Remote { command }) => handle_remote_command(command),
-        Some(Commands::List { command }) => handle_list_command(command),
+        Some(Commands::List { output_format }) => {
+            handle_list_command(
+                output_format
+                    .as_ref()
+                    .unwrap_or(&QueryOutputFormat::Table)
+                    .clone(),
+            )
+            .await
+        }
         Some(Commands::Status {}) => handle_status_command(),
         Some(Commands::Query {
             query,

@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::{
-    cli::commands::query::{json::render_output_as_json, table::render_outout_as_table},
+    cli::commands::query::{json::render_output_as_json, table::render_output_as_table},
     core::databases::application::query::{self},
 };
 
@@ -61,7 +61,7 @@ async fn execute(options: QueryCommandOptions) -> Result<(), Error> {
 
     match options.output_format {
         QueryOutputFormat::Table => {
-            render_outout_as_table(items);
+            render_output_as_table(items).unwrap();
         }
         QueryOutputFormat::Json => {
             render_output_as_json(items);
