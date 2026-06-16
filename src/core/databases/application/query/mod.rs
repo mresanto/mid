@@ -4,7 +4,9 @@ use thiserror::Error;
 
 use crate::core::{
     config::manage,
-    databases::adapters::{DatabaseType, postgres::query::execute_postgres_query},
+    databases::adapters::{
+        DatabaseType, mysql::query::execute_mysql_query, postgres::query::execute_postgres_query,
+    },
     globals,
 };
 
@@ -64,7 +66,14 @@ pub async fn execute_query_on_database(
                 res.unwrap()
             }
             DatabaseType::MySQL => {
-                panic!("mysql adapter not implemented yet");
+                let res = execute_mysql_query(active_database, options.query).await;
+
+                if res.is_err() {
+                    eprintln!("Failed to execute query on MySQL: {res:?}");
+                    return Err(Error::FailedToExecuteQuery());
+                }
+
+                res.unwrap()
             }
             DatabaseType::SQLite => {
                 panic!("sqlite adapter not implemented yet");

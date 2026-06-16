@@ -2,7 +2,9 @@ use thiserror::Error;
 
 use crate::core::{
     config::manage,
-    databases::adapters::{DatabaseType, postgres::query::list_tables_query},
+    databases::adapters::{
+        DatabaseType, mysql::query::list_tables_mysql, postgres::query::list_tables_postgres,
+    },
     globals,
 };
 
@@ -22,10 +24,10 @@ pub fn list_database_tables() -> Result<String, Error> {
     match config.get_database_type() {
         Some(database_type) => match database_type {
             DatabaseType::Postgres => {
-                return Ok(list_tables_query());
+                return Ok(list_tables_postgres());
             }
             DatabaseType::MySQL => {
-                panic!("mysql adapter not implemented yet");
+                return Ok(list_tables_mysql());
             }
             DatabaseType::SQLite => {
                 panic!("sqlite adapter not implemented yet");

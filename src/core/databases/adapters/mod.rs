@@ -1,3 +1,4 @@
+pub mod mysql;
 pub mod postgres;
 
 /// This module contains the database connection and related functionality.

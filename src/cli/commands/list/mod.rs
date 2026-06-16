@@ -1,8 +1,8 @@
 use clap::Subcommand;
 
-use crate::{
-    cli::commands::query::{QueryCommandOptions, QueryOutputFormat, handle_query_command},
-    core::databases::application::tables,
+use crate::core::{
+    databases::application::tables,
+    query::{QueryOutputFormat, handle_query_command},
 };
 
 #[derive(Subcommand)]
@@ -21,10 +21,10 @@ pub async fn handle_list_command(
     let res = tables::list::list_database_tables();
 
     let query = res.unwrap_or_default();
-    let options = QueryCommandOptions {
-        query,
-        output_format: output_format,
-    };
+    let res = handle_query_command(query, output_format).await;
 
-    handle_query_command(options).await
+    match res {
+        Ok(_) => {}
+        Err(e) => eprintln!("Failed to execute query command: {e}"),
+    }
 }

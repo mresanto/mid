@@ -1,18 +1,17 @@
 use clap::Parser;
 
-use crate::{
-    cli::{
-        Cli,
-        commands::{
-            Commands,
-            list::handle_list_command,
-            query::{QueryCommandOptions, QueryOutputFormat, handle_query_command},
-            remote::handle_remote_command,
-            status::handle_status_command,
-        },
+use crate::cli::{
+    Cli,
+    commands::{
+        Commands,
+        list::handle_list_command,
+        query::{QueryCommandOptions, handle_query_command},
+        remote::handle_remote_command,
+        status::handle_status_command,
     },
-    core::databases::application::query,
 };
+
+use crate::core::query::QueryOutputFormat;
 
 mod cli;
 mod core;
