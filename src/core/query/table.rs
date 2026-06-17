@@ -10,7 +10,7 @@ use ratatui::widgets::{Row, Table, TableState};
 
 use crate::core::databases::application::query::DbValue;
 
-pub fn render_outout_as_table(items: Vec<HashMap<String, DbValue>>) -> Result<()> {
+pub fn render_output_as_table(items: Vec<HashMap<String, DbValue>>) -> Result<()> {
     color_eyre::install()?;
 
     let mut table_state = TableState::default();
@@ -137,8 +137,7 @@ pub fn render_table(
         .row_highlight_style(Style::new().on_black().bold())
         .column_highlight_style(Color::Gray)
         .cell_highlight_style(Style::new().reversed().yellow())
-        .highlight_symbol("> ")
-        ;
+        .highlight_symbol("> ");
 
     table_state.select_column(Some(selected_visible_column));
     frame.render_stateful_widget(table, area, table_state);

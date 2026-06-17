@@ -1,7 +1,9 @@
 use clap::Subcommand;
-use thiserror::Error;
 
-use crate::core::databases::application::tables;
+use crate::core::{
+    databases::application::tables,
+    query::{QueryOutputFormat, handle_query_command},
+};
 
 #[derive(Subcommand)]
 pub enum ListCommands {
@@ -12,32 +14,17 @@ pub enum ListCommands {
     },
 }
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("Failed to list tables: {0}")]
-    ListTablesError(#[from] tables::list::Error),
-}
+pub async fn handle_list_command(
+    //command: &Option<RemoteCommands>,
+    output_format: QueryOutputFormat,
+) -> () {
+    let res = tables::list::list_database_tables();
 
-pub fn handle_list_command(command: &Option<ListCommands>) -> () {
-    let res = execute(command);
+    let query = res.unwrap_or_default();
+    let res = handle_query_command(query, output_format).await;
 
     match res {
         Ok(_) => {}
-        Err(e) => eprintln!("Failed to execute list command: {e}"),
+        Err(e) => eprintln!("Failed to execute query command: {e}"),
     }
-}
-
-fn execute(command: &Option<ListCommands>) -> Result<(), Error> {
-    match command {
-        Some(ListCommands::Tables { table_name }) => {
-            tables::list::list_database_tables()?;
-            println!(
-                "Listing tables in the database, filter by name: {}",
-                table_name
-            );
-        }
-        None => {}
-    };
-
-    return Ok(());
 }

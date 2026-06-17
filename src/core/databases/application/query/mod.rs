@@ -3,8 +3,11 @@ use std::collections::HashMap;
 use thiserror::Error;
 
 use crate::core::{
-    config::status,
-    databases::adapters::{DatabaseType, postgres::query::execute_postgres_query},
+    config::manage,
+    databases::adapters::{
+        DatabaseType, mysql::query::execute_mysql_query, postgres::query::execute_postgres_query,
+    },
+    globals,
 };
 
 #[derive(Debug, Clone)]
@@ -25,7 +28,7 @@ pub struct RunQueryOnDatabaseCommandOptions {
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Failed to read config file: {0}")]
-    CurrentConfigError(#[from] status::handler::Error),
+    CurrentConfigError(#[from] manage::Error),
 
     #[error(
         "Cant find an active remote connection. Please set an active connection before running a query."
@@ -39,9 +42,10 @@ pub enum Error {
 pub async fn execute_query_on_database(
     options: RunQueryOnDatabaseCommandOptions,
 ) -> Result<Vec<HashMap<String, DbValue>>, Error> {
-    let config = status::get_current_config()?;
+    let file_path = globals::get_global_config_file_path();
+    let config = manage::read_config(file_path)?;
 
-    let active_database = config.config.get_active_database();
+    let active_database = config.get_active_database();
 
     if active_database.is_none() {
         return Err(Error::NoActiveRemoteConnection);
@@ -49,7 +53,7 @@ pub async fn execute_query_on_database(
 
     let active_database = active_database.unwrap();
 
-    let response = match config.config.get_database_type() {
+    let response = match config.get_database_type() {
         Some(database_type) => match database_type {
             DatabaseType::Postgres => {
                 let res = execute_postgres_query(active_database, options.query).await;
@@ -62,7 +66,14 @@ pub async fn execute_query_on_database(
                 res.unwrap()
             }
             DatabaseType::MySQL => {
-                panic!("mysql adapter not implemented yet");
+                let res = execute_mysql_query(active_database, options.query).await;
+
+                if res.is_err() {
+                    eprintln!("Failed to execute query on MySQL: {res:?}");
+                    return Err(Error::FailedToExecuteQuery());
+                }
+
+                res.unwrap()
             }
             DatabaseType::SQLite => {
                 panic!("sqlite adapter not implemented yet");
