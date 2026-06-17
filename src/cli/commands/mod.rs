@@ -1,6 +1,9 @@
 use clap::Subcommand;
 
-use crate::{cli::commands::remote::RemoteCommands, core::query::QueryOutputFormat};
+use crate::{
+    cli::commands::{query::QueryCommands, remote::RemoteCommands},
+    core::query::QueryOutputFormat,
+};
 
 pub mod list;
 pub mod query;
@@ -30,10 +33,13 @@ pub enum Commands {
         output_format: Option<QueryOutputFormat>,
     },
 
+    #[command(args_conflicts_with_subcommands = true)]
     Query {
         #[arg()]
-        query: String,
+        query: Option<String>,
         #[arg(short, long)]
         output_format: Option<QueryOutputFormat>,
+        #[command(subcommand)]
+        command: Option<QueryCommands>,
     },
 }

@@ -9,7 +9,7 @@ use crate::core::{
     query::{json::render_output_as_json, table::render_output_as_table},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, clap::ValueEnum)]
 pub enum QueryOutputFormat {
     Table,
     Json,
@@ -21,29 +21,10 @@ pub enum Error {
     ExecuteQuery(#[from] query::Error),
 }
 
-impl clap::ValueEnum for QueryOutputFormat {
-    fn value_variants<'a>() -> &'a [Self] {
-        &[Self::Table, Self::Json]
-    }
-
-    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
-        match self {
-            Self::Table => Some(
-                clap::builder::PossibleValue::new("table")
-                    .help("Output the query results in a table format."),
-            ),
-            Self::Json => Some(
-                clap::builder::PossibleValue::new("json")
-                    .help("Output the query results in JSON format."),
-            ),
-        }
-    }
-}
-
 pub async fn handle_query_command(query: String, options: QueryOutputFormat) -> Result<(), Error> {
-    let res = execute(query, options).await;
+    execute(query.clone(), options).await?;
 
-    return res;
+    return Ok(());
 }
 
 async fn execute(query: String, options: QueryOutputFormat) -> Result<(), Error> {
