@@ -27,10 +27,6 @@ impl MidHistoryFile {
     pub fn request_exists(&self, id: &str) -> bool {
         self.requests.iter().any(|request| request.id == id)
     }
-
-    pub fn get_request(&self, id: &str) -> Option<&HistoryRequest> {
-        self.requests.iter().find(|request| request.id == id)
-    }
 }
 
 #[derive(Error, Debug)]
@@ -101,49 +97,6 @@ pub fn remove_request(file_path: String, id: String) -> Result<(), Error> {
     }
 
     history.requests.retain(|request| request.id != id);
-
-    save_history(file_path, history)?;
-
-    return Ok(());
-}
-
-#[allow(dead_code)]
-pub fn read_requests(file_path: String) -> Result<Vec<HistoryRequest>, Error> {
-    let history = read_history(file_path)?;
-
-    return Ok(history.requests);
-}
-
-#[allow(dead_code)]
-pub fn read_request(file_path: String, id: String) -> Result<HistoryRequest, Error> {
-    let history = read_history(file_path)?;
-
-    let request = history
-        .get_request(&id)
-        .ok_or_else(|| Error::RequestNotFound(id))?;
-
-    return Ok(request.clone());
-}
-
-#[allow(dead_code)]
-pub fn update_request(file_path: String, request: HistoryRequest) -> Result<(), Error> {
-    let mut history = read_history(file_path.clone())?;
-
-    if !history.request_exists(&request.id) {
-        return Err(Error::RequestNotFound(request.id));
-    }
-
-    history.requests = history
-        .requests
-        .into_iter()
-        .map(|current_request| {
-            if current_request.id == request.id {
-                request.clone()
-            } else {
-                current_request
-            }
-        })
-        .collect();
 
     save_history(file_path, history)?;
 

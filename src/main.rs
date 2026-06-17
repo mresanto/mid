@@ -3,8 +3,8 @@ use clap::Parser;
 use crate::cli::{
     Cli,
     commands::{
-        Commands, list::handle_list_command, query::handle_query_command,
-        remote::handle_remote_command, status::handle_status_command,
+        Commands, history::handle_history_command, list::handle_list_command,
+        query::handle_query_command, remote::handle_remote_command, status::handle_status_command,
     },
 };
 
@@ -53,6 +53,7 @@ async fn main() {
             output_format,
             command,
         }) => handle_query_command(command, query, output_format).await,
+        Some(Commands::History { command }) => handle_history_command(command).await,
         _ => {}
     }
 }
