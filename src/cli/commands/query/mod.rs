@@ -1,6 +1,5 @@
 use crate::core::{self, query::QueryOutputFormat};
 use clap::Subcommand;
-
 #[derive(Subcommand)]
 pub enum QueryCommands {
     Last {
@@ -29,6 +28,7 @@ pub async fn handle_query_command(
                                 .as_ref()
                                 .unwrap_or(&QueryOutputFormat::Table)
                                 .clone(),
+                            None,
                         )
                         .await;
 
@@ -54,6 +54,7 @@ pub async fn handle_query_command(
                     .as_ref()
                     .unwrap_or(&QueryOutputFormat::Table)
                     .clone(),
+                None,
             )
             .await;
 
