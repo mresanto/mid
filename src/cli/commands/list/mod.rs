@@ -32,7 +32,13 @@ pub async fn handle_list_command(
     match res {
         Ok(Some(event)) if event.key_code == KeyCode::Enter => {
             if let Some(table_name) = event.value {
-                let query = format!("SELECT * FROM \"{table_name}\"");
+                let query = match tables::select::select_database_table(&table_name) {
+                    Ok(query) => query,
+                    Err(e) => {
+                        eprintln!("[List] Failed to build query for selected table: {e}");
+                        return;
+                    }
+                };
                 let result =
                     handle_query_command(query, output_format, Some(vec![TableCommand::Moviment]))
                         .await;
