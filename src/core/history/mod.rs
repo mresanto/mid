@@ -47,14 +47,6 @@ pub enum Error {
     RequestNotFound(String),
 }
 
-#[allow(dead_code)]
-pub fn get_global_history_file_path() -> String {
-    let home_dir = dirs::home_dir().expect("Failed to get home directory");
-    let path = home_dir.join(".mid_history.toml");
-
-    return path.to_string_lossy().to_string();
-}
-
 pub fn read_history(file_path: String) -> Result<MidHistoryFile, Error> {
     let contents = match fs::read_to_string(file_path) {
         Ok(contents) => contents,

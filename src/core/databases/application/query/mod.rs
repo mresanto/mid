@@ -91,7 +91,7 @@ pub async fn execute_query_on_database(
         HistoryRequest {
             id: create_history_request_id(),
             query: options.query,
-            database: active_database.connection_string.clone(),
+            database: active_database.name.clone(),
         },
     );
 
