@@ -19,6 +19,10 @@ use crate::core::{
     query::{TableCommand, TableEvent},
 };
 
+const COLUMN_WIDTH: u16 = 20;
+const COLUMN_SPACING: u16 = 1;
+const FOOTER_HEIGHT: u16 = 2;
+
 #[derive(Default)]
 pub struct App {
     items: Vec<HashMap<String, DbValue>>,
@@ -124,14 +128,17 @@ impl App {
             KeyCode::Char('g') => self.select_first_row(),
             KeyCode::Char('G') => self.select_last_row(),
             KeyCode::Char('y') => self.yank_selected_row(),
-            KeyCode::Char('u') if self.command == TableCommand::ShowValue => {
-                self.update_selected_value()
-            }
+            KeyCode::Char('u') => match self.command {
+                TableCommand::ShowValue => self.update_selected_value(),
+                TableCommand::ShowTables => {}
+                _ => {}
+            },
             KeyCode::Char('e') => self.toggle_query_expanded(),
             KeyCode::Char('p') => self.edit_query(),
             KeyCode::Enter => match self.command {
                 TableCommand::ShowTables => self.select_table(),
                 TableCommand::ShowValue => self.toggle_value_expanded(),
+                _ => {}
             },
             _ => {}
         }
@@ -326,60 +333,16 @@ impl App {
             .len()
             .max(1)
     }
-}
 
-impl Widget for &mut App {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        fn items_to_rows_elements(
-            items: &[HashMap<String, DbValue>],
-        ) -> (Vec<String>, Vec<Vec<String>>) {
-            let headers: Vec<String> = items
-                .iter()
-                .flat_map(|row| row.keys().cloned())
-                .collect::<BTreeSet<_>>()
-                .into_iter()
-                .collect();
-
-            if headers.is_empty() {
-                return (
-                    vec!["result".to_string()],
-                    vec![vec!["No rows".to_string()]],
-                );
-            }
-
-            let rows = items
-                .iter()
-                .map(|row| {
-                    headers
-                        .iter()
-                        .map(|header| {
-                            row.get(header)
-                                .map(App::format_db_value)
-                                .unwrap_or_else(|| "null".to_string())
-                        })
-                        .collect::<Vec<String>>()
-                })
-                .collect::<Vec<Vec<String>>>();
-
-            (headers, rows)
-        }
-
-        // Render the UI with a table.
+    fn query_lines(&self) -> Vec<Line<'_>> {
         let subtitle_lines = if self.query_expanded {
-            self.query
-                .lines()
-                .enumerate()
-                .map(|(index, line)| {
-                    Line::from(vec![
-                        if index == 0 {
-                            "Query: ".into()
-                        } else {
-                            "       ".into()
-                        },
-                        line.yellow(),
-                    ])
-                })
-                .collect::<Vec<_>>()
+            let mut query = vec![Line::from("Query:")];
+            query.extend(
+                self.query
+                    .lines()
+                    .map(|line| Line::from(line.to_string().yellow())),
+            );
+            query
         } else {
             vec![Line::from(vec![
                 "Query [e to expand]: ".into(),
@@ -387,63 +350,98 @@ impl Widget for &mut App {
             ])]
         };
 
-        let available_width = usize::from(area.width.max(1));
-        let subtitle_height = if self.query_expanded {
-            subtitle_lines
-                .iter()
-                .map(|line| line.width().div_ceil(available_width).max(1))
-                .sum::<usize>()
-                .min(u16::MAX as usize) as u16
-        } else {
-            1
-        };
+        subtitle_lines
+    }
 
-        let expanded_value = self.value_expanded.then(|| self.selected_value()).flatten();
-        let value_line = expanded_value
-            .as_deref()
-            .map(|value| Line::from(vec!["Value [Enter to collapse]: ".into(), value.cyan()]));
-        let value_height = value_line
-            .as_ref()
+    fn expanded_value_line(&self) -> Option<Line<'static>> {
+        self.selected_value()
+            .filter(|_| self.value_expanded)
+            .map(|value| Line::from(vec!["Value [Enter to collapse]: ".into(), value.cyan()]))
+    }
+
+    fn header_height(&self, available_width: usize) -> u16 {
+        let query_height = self
+            .query_lines()
+            .iter()
             .map(|line| line.width().div_ceil(available_width).max(1))
-            .unwrap_or(0)
-            .min(u16::MAX as usize) as u16;
+            .sum::<usize>();
+        let value_height = self
+            .expanded_value_line()
+            .map(|line| line.width().div_ceil(available_width).max(1))
+            .unwrap_or(0);
 
-        let [subtitle_area, value_area, table_area] = Layout::vertical([
-            Constraint::Length(subtitle_height),
-            Constraint::Length(value_height),
-            Constraint::Fill(1),
-        ])
-        .areas(area);
+        query_height
+            .saturating_add(value_height)
+            .min(u16::MAX as usize) as u16
+    }
 
-        let query = Paragraph::new(subtitle_lines);
+    fn render_header(&self, area: Rect, buf: &mut Buffer) {
+        let query_lines = self.query_lines();
+        let value_line = self.expanded_value_line();
+
+        let [query_area, value_area] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(area);
+
+        let query = Paragraph::new(query_lines);
         if self.query_expanded {
-            query.wrap(Wrap { trim: false }).render(subtitle_area, buf);
+            query.wrap(Wrap { trim: false }).render(query_area, buf);
         } else {
-            query.render(subtitle_area, buf);
+            query.render(query_area, buf);
         }
         if let Some(value_line) = value_line {
             Paragraph::new(value_line)
                 .wrap(Wrap { trim: false })
                 .render(value_area, buf);
         }
+    }
 
-        const COLUMN_WIDTH: u16 = 20;
-        const COLUMN_SPACING: u16 = 1;
+    fn items_to_rows_elements(&self) -> (Vec<String>, Vec<Vec<String>>) {
+        let headers: Vec<String> = self
+            .items
+            .iter()
+            .flat_map(|row| row.keys().cloned())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect();
 
-        let (headers, row_values) = items_to_rows_elements(&self.items);
-        self.selected_column = self.selected_column.min(headers.len().saturating_sub(1));
+        if headers.is_empty() {
+            return (
+                vec!["result".to_string()],
+                vec![vec!["No rows".to_string()]],
+            );
+        }
 
-        let visible_columns = ((table_area.width.saturating_add(COLUMN_SPACING))
+        let rows = self
+            .items
+            .iter()
+            .map(|row| {
+                headers
+                    .iter()
+                    .map(|header| {
+                        row.get(header)
+                            .map(Self::format_db_value)
+                            .unwrap_or_else(|| "null".to_string())
+                    })
+                    .collect::<Vec<String>>()
+            })
+            .collect::<Vec<Vec<String>>>();
+
+        (headers, rows)
+    }
+
+    fn render_table(&mut self, area: Rect, buf: &mut Buffer) {
+        let (headers, row_values) = self.items_to_rows_elements();
+
+        let visible_columns = ((area.width.saturating_add(COLUMN_SPACING))
             / (COLUMN_WIDTH + COLUMN_SPACING))
             .max(1) as usize;
 
-        if self.selected_column < self.column_offset {
-            self.column_offset = self.selected_column;
-        } else if self.selected_column >= self.column_offset + visible_columns {
-            self.column_offset = self
-                .selected_column
-                .saturating_add(1)
-                .saturating_sub(visible_columns);
+        match self.selected_column {
+            n if n < self.column_offset => self.column_offset = n,
+            n if n >= self.column_offset + visible_columns => {
+                self.column_offset = n.saturating_add(1).saturating_sub(visible_columns)
+            }
+            _ => {}
         }
 
         self.column_offset = self
@@ -455,6 +453,7 @@ impl Widget for &mut App {
         let header = Row::new(visible_headers.clone())
             .style(Style::new().bold())
             .bottom_margin(1);
+
         let rows = row_values.into_iter().map(|row| {
             Row::new(
                 row.into_iter()
@@ -463,10 +462,12 @@ impl Widget for &mut App {
                     .collect::<Vec<_>>(),
             )
         });
+
         let widths = visible_headers
             .iter()
             .map(|_| Constraint::Length(COLUMN_WIDTH))
             .collect::<Vec<_>>();
+
         let table = Table::new(rows, widths)
             .header(header)
             .column_spacing(COLUMN_SPACING)
@@ -478,6 +479,62 @@ impl Widget for &mut App {
         self.table_state.select_column(Some(
             self.selected_column.saturating_sub(self.column_offset),
         ));
-        StatefulWidget::render(table, table_area, buf, &mut self.table_state);
+        StatefulWidget::render(table, area, buf, &mut self.table_state);
+    }
+
+    fn footer_commands(&self) -> Line<'static> {
+        let commands: &[(&str, &str)] = match self.command {
+            TableCommand::ShowTables => &[
+                ("↑/↓ or j/k", "navigate"),
+                ("Enter", "select"),
+                ("y", "copy"),
+                ("e", "query"),
+                ("p", "edit"),
+                ("q", "quit"),
+            ],
+            TableCommand::ShowValue => &[
+                ("↑/↓/←/→ or j/k/h/l", "navigate"),
+                ("Enter", "value"),
+                ("y", "copy"),
+                ("u", "update"),
+                ("e", "query"),
+                ("p", "edit"),
+                ("q", "quit"),
+            ],
+        };
+
+        Line::from(
+            commands
+                .iter()
+                .flat_map(|&(key, action)| [key.yellow(), format!(" {action}  ").into()])
+                .collect::<Vec<_>>(),
+        )
+        .dark_gray()
+    }
+
+    fn render_footer(&self, area: Rect, buf: &mut Buffer) {
+        let [_, commands_area] =
+            Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(area);
+
+        Paragraph::new(self.footer_commands())
+            .alignment(ratatui::layout::HorizontalAlignment::Center)
+            .render(commands_area, buf);
+    }
+}
+
+impl Widget for &mut App {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let available_width = usize::from(area.width.max(1));
+
+        let [header_area, table_area, footer_area] = Layout::vertical([
+            Constraint::Length(self.header_height(available_width)),
+            Constraint::Fill(1),
+            Constraint::Length(FOOTER_HEIGHT),
+        ])
+        .areas(area);
+
+        self.render_header(header_area, buf);
+        self.render_table(table_area, buf);
+        self.render_footer(footer_area, buf);
     }
 }
