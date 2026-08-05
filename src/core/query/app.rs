@@ -436,8 +436,10 @@ impl App {
 
     fn render_table(&mut self, area: Rect, buf: &mut Buffer) {
         let (headers, row_values) = self.items_to_rows_elements();
+        let row_number_width = self.items.len().max(1).to_string().len() as u16;
+        let data_width = area.width.saturating_sub(row_number_width + COLUMN_SPACING);
 
-        let visible_columns = ((area.width.saturating_add(COLUMN_SPACING))
+        let visible_columns = ((data_width.saturating_add(COLUMN_SPACING))
             / (COLUMN_WIDTH + COLUMN_SPACING))
             .max(1) as usize;
 
@@ -454,24 +456,37 @@ impl App {
             .min(headers.len().saturating_sub(visible_columns));
         let visible_end = (self.column_offset + visible_columns).min(headers.len());
         let visible_headers = headers[self.column_offset..visible_end].to_vec();
+        let mut table_headers = Vec::with_capacity(visible_headers.len() + 1);
+        table_headers.push("#".to_string());
+        table_headers.extend(visible_headers.clone());
 
-        let header = Row::new(visible_headers.clone())
+        let header = Row::new(table_headers)
             .style(Style::new().bold())
             .bottom_margin(1);
 
-        let rows = row_values.into_iter().map(|row| {
-            Row::new(
+        let has_items = !self.items.is_empty();
+        let rows = row_values.into_iter().enumerate().map(|(index, row)| {
+            let mut cells = Vec::with_capacity(visible_columns + 1);
+            cells.push(if has_items {
+                (index + 1).to_string()
+            } else {
+                String::new()
+            });
+            cells.extend(
                 row.into_iter()
                     .skip(self.column_offset)
-                    .take(visible_columns)
-                    .collect::<Vec<_>>(),
-            )
+                    .take(visible_columns),
+            );
+            Row::new(cells)
         });
 
-        let widths = visible_headers
-            .iter()
-            .map(|_| Constraint::Length(COLUMN_WIDTH))
-            .collect::<Vec<_>>();
+        let mut widths = Vec::with_capacity(visible_headers.len() + 1);
+        widths.push(Constraint::Length(row_number_width));
+        widths.extend(
+            visible_headers
+                .iter()
+                .map(|_| Constraint::Length(COLUMN_WIDTH)),
+        );
 
         let table = Table::new(rows, widths)
             .header(header)
@@ -482,7 +497,9 @@ impl App {
             .highlight_symbol("> ");
 
         self.table_state.select_column(Some(
-            self.selected_column.saturating_sub(self.column_offset),
+            self.selected_column
+                .saturating_sub(self.column_offset)
+                .saturating_add(1),
         ));
         StatefulWidget::render(table, area, buf, &mut self.table_state);
     }
