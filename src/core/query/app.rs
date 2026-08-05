@@ -358,11 +358,14 @@ impl App {
     }
 
     fn header_height(&self, available_width: usize) -> u16 {
-        let query_height = self
-            .query_lines()
-            .iter()
-            .map(|line| line.width().div_ceil(available_width).max(1))
-            .sum::<usize>();
+        let query_height = if self.query_expanded {
+            self.query_lines()
+                .iter()
+                .map(|line| line.width().div_ceil(available_width).max(1))
+                .sum::<usize>()
+        } else {
+            1
+        };
 
         query_height.saturating_add(1).min(u16::MAX as usize) as u16
     }
@@ -371,8 +374,9 @@ impl App {
         let query_lines = self.query_lines();
         let value_line = self.expanded_value_line();
 
+        let value_height = u16::from(value_line.is_some());
         let [query_area, value_area] =
-            Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(area);
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(value_height)]).areas(area);
 
         let query = Paragraph::new(query_lines);
         if self.query_expanded {
