@@ -1,6 +1,7 @@
-use std::collections::HashMap;
-
-use thiserror::Error;
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use crate::core::{
     config::manage,
@@ -10,6 +11,7 @@ use crate::core::{
     globals::{self, get_global_history_file_path},
     history::{HistoryRequest, add_request},
 };
+use thiserror::Error;
 
 #[derive(Debug, Clone)]
 pub enum DbValue {
@@ -42,7 +44,8 @@ pub enum Error {
 
 pub async fn execute_query_on_database(
     options: RunQueryOnDatabaseCommandOptions,
-) -> Result<Vec<HashMap<String, DbValue>>, Error> {
+) -> Result<(Vec<HashMap<String, DbValue>>, Duration), Error> {
+    let start = Instant::now();
     let file_path = globals::get_global_config_file_path();
     let config = manage::read_config(file_path)?;
 
@@ -99,7 +102,7 @@ pub async fn execute_query_on_database(
         eprintln!("Failed to save history to database",);
     }
 
-    return Ok(response);
+    return Ok((response, start.elapsed()));
 }
 
 fn create_history_request_id() -> String {

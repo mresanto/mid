@@ -66,12 +66,12 @@ async fn execute(
             let mut app = App::new(Vec::new(), command, current_query.clone());
 
             loop {
-                let items =
+                let (items, duration) =
                     query::execute_query_on_database(query::RunQueryOnDatabaseCommandOptions {
                         query: current_query.clone(),
                     })
                     .await?;
-                app.update_query_results(items, current_query.clone());
+                app.update_app_results(items, current_query.clone(), duration);
 
                 let event =
                     ratatui::run(|terminal| app.run(terminal)).map_err(color_eyre::Report::from)?;
@@ -101,7 +101,7 @@ async fn execute(
             }
         }
         QueryOutputFormat::Json => {
-            let items =
+            let (items, _) =
                 query::execute_query_on_database(query::RunQueryOnDatabaseCommandOptions { query })
                     .await?;
 

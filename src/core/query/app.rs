@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeSet, HashMap},
     io,
+    time::Duration,
 };
 
 use arboard::Clipboard;
@@ -21,7 +22,7 @@ use crate::core::{
 
 const COLUMN_WIDTH: u16 = 20;
 const COLUMN_SPACING: u16 = 1;
-const FOOTER_HEIGHT: u16 = 2;
+const FOOTER_HEIGHT: u16 = 3;
 
 #[derive(Default)]
 pub struct App {
@@ -36,6 +37,7 @@ pub struct App {
     selected_column: usize,
     clipboard: Option<Clipboard>,
     event: Option<TableEvent>,
+    duration: Duration,
 }
 
 impl App {
@@ -55,9 +57,15 @@ impl App {
         }
     }
 
-    pub fn update_query_results(&mut self, items: Vec<HashMap<String, DbValue>>, query: String) {
+    pub fn update_app_results(
+        &mut self,
+        items: Vec<HashMap<String, DbValue>>,
+        query: String,
+        duration: Duration,
+    ) {
         self.items = items;
         self.query = query;
+        self.duration = duration;
         self.exit = false;
         self.event = None;
         self.value_expanded = false;
@@ -509,8 +517,20 @@ impl App {
     }
 
     fn render_footer(&self, area: Rect, buf: &mut Buffer) {
-        let [_, commands_area] =
-            Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(area);
+        let [_, duration_area, commands_area] = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Fill(1),
+        ])
+        .areas(area);
+
+        Paragraph::new(Line::from(vec![
+            "Duration: ".dark_gray(),
+            format!("{:?}", self.duration).blue(),
+        ]))
+        .alignment(ratatui::layout::HorizontalAlignment::Left)
+        .dark_gray()
+        .render(duration_area, buf);
 
         Paragraph::new(self.footer_commands())
             .alignment(ratatui::layout::HorizontalAlignment::Center)
