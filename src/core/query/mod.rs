@@ -39,7 +39,7 @@ pub enum TableCommand {
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Fail to run the query")]
+    #[error("Fail to run the query :{0}")]
     ExecuteQuery(#[from] query::Error),
 
     #[error("Fail to render query results")]

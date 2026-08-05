@@ -40,6 +40,9 @@ pub enum Error {
 
     #[error("Failed to execute query")]
     FailedToExecuteQuery(),
+
+    #[error("Database type not found")]
+    DatabaseTypeNotFound,
 }
 
 pub async fn execute_query_on_database(
@@ -84,7 +87,7 @@ pub async fn execute_query_on_database(
             }
         },
         _ => {
-            return Err(Error::NoActiveRemoteConnection);
+            return Err(Error::DatabaseTypeNotFound);
         }
     };
 

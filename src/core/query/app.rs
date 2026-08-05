@@ -169,11 +169,12 @@ impl App {
         let Some(value) = selected_row.get(&column) else {
             return;
         };
-        let Some(id_column) = self.first_column_name() else {
-            return;
-        };
-        let Some(id) = selected_row.get(&id_column) else {
-            return;
+        // let Some(id_column) = self.first_column_name() else {
+        //     return;
+        // };q
+        let id_column = "Id";
+        let Some(id) = selected_row.get(id_column) else {
+            panic!("No id column found in selected row");
         };
         let Some(table) = Self::table_from_query(&self.query) else {
             return;
@@ -217,14 +218,14 @@ impl App {
             .nth(self.selected_column)
     }
 
-    fn first_column_name(&self) -> Option<String> {
-        self.items
-            .iter()
-            .flat_map(|row| row.keys().cloned())
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .next()
-    }
+    // fn first_column_name(&self) -> Option<String> {
+    //     self.items
+    //         .iter()
+    //         .flat_map(|row| row.keys().cloned())
+    //         .collect::<BTreeSet<_>>()
+    //         .into_iter()
+    //         .next()
+    // }
 
     fn select_table(&mut self) {
         let Some(table_name) = self

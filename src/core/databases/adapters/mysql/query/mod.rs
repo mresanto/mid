@@ -115,7 +115,7 @@ pub fn list_tables_mysql() -> String {
 
 pub fn select_table_mysql(table_name: &str) -> String {
     let table_name = table_name.replace('`', "``");
-    format!("SELECT * FROM `{table_name}`")
+    format!("SELECT * FROM `{table_name}` LIMIT 1000")
 }
 
 pub fn update_table_mysql(
