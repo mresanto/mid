@@ -22,7 +22,7 @@ use crate::core::{
 
 const COLUMN_WIDTH: u16 = 20;
 const COLUMN_SPACING: u16 = 1;
-const FOOTER_HEIGHT: u16 = 3;
+const FOOTER_HEIGHT: u16 = 4;
 
 #[derive(Default)]
 pub struct App {

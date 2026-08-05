@@ -1,5 +1,6 @@
 mod app;
 mod json;
+mod sql;
 
 #[derive(Debug, Clone)]
 pub enum TableEvent {
@@ -21,13 +22,14 @@ use thiserror::Error;
 
 use crate::core::{
     databases::application::query,
-    query::{app::App, json::render_output_as_json},
+    query::{app::App, json::render_output_as_json, sql::render_output_as_sql},
 };
 
 #[derive(Debug, Clone, clap::ValueEnum)]
 pub enum QueryOutputFormat {
     Table,
     Json,
+    Sql,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, clap::ValueEnum)]
@@ -66,7 +68,7 @@ async fn execute(
             let mut app = App::new(Vec::new(), command, current_query.clone());
 
             loop {
-                let (items, duration) =
+                let (items, duration, _) =
                     query::execute_query_on_database(query::RunQueryOnDatabaseCommandOptions {
                         query: current_query.clone(),
                     })
@@ -101,11 +103,22 @@ async fn execute(
             }
         }
         QueryOutputFormat::Json => {
-            let (items, _) =
+            let (items, _, _) =
                 query::execute_query_on_database(query::RunQueryOnDatabaseCommandOptions { query })
                     .await?;
 
             render_output_as_json(items);
+            Ok(None)
+        }
+        QueryOutputFormat::Sql => {
+            let (items, _, config) =
+                query::execute_query_on_database(query::RunQueryOnDatabaseCommandOptions {
+                    query: query.clone(),
+                })
+                .await?;
+
+            println!("{}", render_output_as_sql(items, query, config));
+
             Ok(None)
         }
     }

@@ -52,7 +52,8 @@ async fn main() {
             query,
             output_format,
             command,
-        }) => handle_query_command(command, query, output_format).await,
+            id,
+        }) => handle_query_command(command, query, output_format, id).await,
         Some(Commands::History { command }) => handle_history_command(command).await,
         _ => {}
     }

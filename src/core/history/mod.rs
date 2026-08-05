@@ -10,9 +10,21 @@ pub struct MidHistoryFile {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct HistoryRequest {
-    pub id: String,
+    pub id: u16,
     pub query: String,
     pub database: String,
+    pub created_at: String,
+}
+
+impl Default for HistoryRequest {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            query: String::new(),
+            database: String::new(),
+            created_at: String::new(),
+        }
+    }
 }
 
 impl Default for MidHistoryFile {
@@ -24,7 +36,7 @@ impl Default for MidHistoryFile {
 }
 
 impl MidHistoryFile {
-    pub fn request_exists(&self, id: &str) -> bool {
+    pub fn request_exists(&self, id: u16) -> bool {
         self.requests.iter().any(|request| request.id == id)
     }
 }
@@ -41,10 +53,10 @@ pub enum Error {
     Io(#[from] io::Error),
 
     #[error("History request already exists: {0}")]
-    RequestAlreadyExists(String),
+    RequestAlreadyExists(u16),
 
     #[error("History request not found: {0}")]
-    RequestNotFound(String),
+    RequestNotFound(u16),
 }
 
 pub fn read_history(file_path: String) -> Result<MidHistoryFile, Error> {
@@ -59,6 +71,21 @@ pub fn read_history(file_path: String) -> Result<MidHistoryFile, Error> {
     return Ok(history);
 }
 
+pub fn last_history_or_default(file_path: String) -> Result<HistoryRequest, Error> {
+    let history = read_history(file_path)?;
+    let last_or_default = history.requests.last();
+    match last_or_default {
+        Some(request) => Ok(request.clone()),
+        None => Ok(HistoryRequest::default()),
+    }
+}
+
+pub fn get_history_id(file_path: String, id: &u16) -> Result<Option<HistoryRequest>, Error> {
+    let history = read_history(file_path)?;
+    let request = history.requests.iter().find(|r| r.id == *id);
+    Ok(request.cloned())
+}
+
 pub fn save_history(file_path: String, content: MidHistoryFile) -> Result<(), Error> {
     let history_string = toml::to_string_pretty(&content)?;
     fs::write(file_path, history_string)?;
@@ -69,7 +96,7 @@ pub fn save_history(file_path: String, content: MidHistoryFile) -> Result<(), Er
 pub fn add_request(file_path: String, request: HistoryRequest) -> Result<(), Error> {
     let mut history = read_history(file_path.clone())?;
 
-    if history.request_exists(&request.id) {
+    if history.request_exists(request.id) {
         return Err(Error::RequestAlreadyExists(request.id));
     }
 
@@ -81,10 +108,10 @@ pub fn add_request(file_path: String, request: HistoryRequest) -> Result<(), Err
 }
 
 #[allow(dead_code)]
-pub fn remove_request(file_path: String, id: String) -> Result<(), Error> {
+pub fn remove_request(file_path: String, id: u16) -> Result<(), Error> {
     let mut history = read_history(file_path.clone())?;
 
-    if !history.request_exists(&id) {
+    if !history.request_exists(id) {
         return Err(Error::RequestNotFound(id));
     }
 

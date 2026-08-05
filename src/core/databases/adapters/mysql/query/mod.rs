@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use sqlx::{AssertSqlSafe, Column, Row, TypeInfo, ValueRef, mysql::MySqlPoolOptions};
 use thiserror::Error;
@@ -160,15 +160,100 @@ pub fn update_table_mysql(
     )
 }
 
+pub fn generate_mysql_export(table_name: &str, items: Vec<HashMap<String, DbValue>>) -> String {
+    if items.is_empty() {
+        return String::new();
+    }
+
+    fn identifier(value: &str) -> String {
+        format!("`{}`", value.replace('`', "``"))
+    }
+
+    fn literal(value: &DbValue) -> String {
+        match value {
+            DbValue::Null => "NULL".to_string(),
+            DbValue::Text(value) => format!("'{}'", value.replace('\'', "''")),
+            DbValue::TextArray(values) => format!(
+                "'{}'",
+                format!("{{{}}}", values.join(",")).replace('\'', "''")
+            ),
+            DbValue::Json(value) => format!("'{}'", value.to_string().replace('\'', "''")),
+            DbValue::Numeric(value) => value.clone(),
+            DbValue::Integer(value) => value.to_string(),
+            DbValue::Float(value) if value.is_finite() => value.to_string(),
+            DbValue::Float(_) => "NULL".to_string(),
+            DbValue::Boolean(value) => i32::from(*value).to_string(),
+        }
+    }
+
+    let columns = items
+        .iter()
+        .flat_map(|row| row.keys().cloned())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+
+    if columns.is_empty() {
+        return String::new();
+    }
+
+    let column_list = columns
+        .iter()
+        .map(|column| identifier(column))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let values = items
+        .iter()
+        .map(|row| {
+            let values = columns
+                .iter()
+                .map(|column| {
+                    row.get(column)
+                        .map(literal)
+                        .unwrap_or_else(|| "NULL".into())
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("({values})")
+        })
+        .collect::<Vec<_>>()
+        .join(",\n");
+
+    format!(
+        "INSERT INTO {} ({}) VALUES\n{};",
+        identifier(table_name),
+        column_list,
+        values
+    )
+}
+
 #[cfg(test)]
 mod tests {
-    use super::select_table_mysql;
+    use std::collections::HashMap;
+
+    use super::{DbValue, generate_mysql_export, select_table_mysql};
 
     #[test]
     fn quotes_table_name_as_mysql_identifier() {
         assert_eq!(
             select_table_mysql("user`data"),
-            "SELECT * FROM `user``data`"
+            "SELECT * FROM `user``data` LIMIT 1000"
+        );
+    }
+
+    #[test]
+    fn generates_multi_row_insert_sql() {
+        let rows = vec![
+            HashMap::from([
+                ("id".to_string(), DbValue::Integer(1)),
+                ("name".to_string(), DbValue::Text("O'Brien".to_string())),
+            ]),
+            HashMap::from([("id".to_string(), DbValue::Integer(2))]),
+        ];
+
+        assert_eq!(
+            generate_mysql_export("user`data", rows),
+            "INSERT INTO `user``data` (`id`, `name`) VALUES\n(1, 'O''Brien'),\n(2, NULL);"
         );
     }
 }

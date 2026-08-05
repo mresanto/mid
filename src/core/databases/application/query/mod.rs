@@ -4,13 +4,14 @@ use std::{
 };
 
 use crate::core::{
-    config::manage,
+    config::{manage, types::MidConfigFile},
     databases::adapters::{
         DatabaseType, mysql::query::execute_mysql_query, postgres::query::execute_postgres_query,
     },
     globals::{self, get_global_history_file_path},
-    history::{HistoryRequest, add_request},
+    history::{HistoryRequest, add_request, last_history_or_default},
 };
+use sqlx::types::chrono::Utc;
 use thiserror::Error;
 
 #[derive(Debug, Clone)]
@@ -48,7 +49,7 @@ pub enum Error {
 
 pub async fn execute_query_on_database(
     options: RunQueryOnDatabaseCommandOptions,
-) -> Result<(Vec<HashMap<String, DbValue>>, Duration), Error> {
+) -> Result<(Vec<HashMap<String, DbValue>>, Duration, MidConfigFile), Error> {
     let start = Instant::now();
     let file_path = globals::get_global_config_file_path();
     let config = manage::read_config(file_path)?;
@@ -93,12 +94,14 @@ pub async fn execute_query_on_database(
     };
 
     let file_path = get_global_history_file_path();
+    let last = last_history_or_default(file_path.clone());
     let history_response = add_request(
         file_path,
         HistoryRequest {
-            id: create_history_request_id(),
+            id: last.unwrap_or_default().id + 1,
             query: options.query,
             database: active_database.name.clone(),
+            created_at: Utc::now().to_string(),
         },
     );
 
@@ -106,14 +109,5 @@ pub async fn execute_query_on_database(
         eprintln!("Failed to save history to database",);
     }
 
-    return Ok((response, start.elapsed()));
-}
-
-fn create_history_request_id() -> String {
-    let timestamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("System time is before UNIX epoch")
-        .as_nanos();
-
-    return timestamp.to_string();
+    return Ok((response, start.elapsed(), config));
 }

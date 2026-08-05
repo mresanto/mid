@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use sqlx::{
@@ -129,6 +129,77 @@ pub async fn execute_postgres_query(
     return Ok(parsed_rows);
 }
 
+pub fn generate_postgres_export(table_name: &str, items: Vec<HashMap<String, DbValue>>) -> String {
+    if items.is_empty() {
+        return String::new();
+    }
+
+    fn identifier(value: &str) -> String {
+        format!("\"{}\"", value.replace('"', "\"\""))
+    }
+
+    fn literal(value: &DbValue) -> String {
+        match value {
+            DbValue::Null => "NULL".to_string(),
+            DbValue::Text(value) => format!("'{}'", value.replace('\'', "''")),
+            DbValue::TextArray(values) => format!(
+                "ARRAY[{}]",
+                values
+                    .iter()
+                    .map(|value| format!("'{}'", value.replace('\'', "''")))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            DbValue::Json(value) => format!("'{}'", value.to_string().replace('\'', "''")),
+            DbValue::Numeric(value) => value.clone(),
+            DbValue::Integer(value) => value.to_string(),
+            DbValue::Float(value) if value.is_finite() => value.to_string(),
+            DbValue::Float(_) => "NULL".to_string(),
+            DbValue::Boolean(value) => value.to_string().to_uppercase(),
+        }
+    }
+
+    let columns = items
+        .iter()
+        .flat_map(|row| row.keys().cloned())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+
+    if columns.is_empty() {
+        return String::new();
+    }
+
+    let column_list = columns
+        .iter()
+        .map(|column| identifier(column))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let values = items
+        .iter()
+        .map(|row| {
+            let values = columns
+                .iter()
+                .map(|column| {
+                    row.get(column)
+                        .map(literal)
+                        .unwrap_or_else(|| "NULL".to_string())
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("({values})")
+        })
+        .collect::<Vec<_>>()
+        .join(",\n");
+
+    format!(
+        "INSERT INTO {} ({}) VALUES\n{};",
+        identifier(table_name),
+        column_list,
+        values
+    )
+}
+
 pub fn list_tables_postgres() -> String {
     return "
         SELECT table_name
@@ -189,13 +260,35 @@ pub fn update_table_postgres(
 
 #[cfg(test)]
 mod tests {
-    use super::select_table_postgres;
+    use std::collections::HashMap;
+
+    use super::{DbValue, generate_postgres_export, select_table_postgres};
 
     #[test]
     fn quotes_table_name_as_postgres_identifier() {
         assert_eq!(
             select_table_postgres("user\"data"),
-            "SELECT * FROM \"user\"\"data\""
+            "SELECT * FROM \"user\"\"data\" LIMIT 1000"
+        );
+    }
+
+    #[test]
+    fn generates_multi_row_insert_sql() {
+        let rows = vec![
+            HashMap::from([
+                ("active".to_string(), DbValue::Boolean(true)),
+                ("id".to_string(), DbValue::Integer(1)),
+                ("name".to_string(), DbValue::Text("O'Brien".to_string())),
+            ]),
+            HashMap::from([
+                ("active".to_string(), DbValue::Boolean(false)),
+                ("id".to_string(), DbValue::Integer(2)),
+            ]),
+        ];
+
+        assert_eq!(
+            generate_postgres_export("user\"data", rows),
+            "INSERT INTO \"user\"\"data\" (\"active\", \"id\", \"name\") VALUES\n(TRUE, 1, 'O''Brien'),\n(FALSE, 2, NULL);"
         );
     }
 }

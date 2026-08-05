@@ -42,6 +42,8 @@ pub enum Commands {
         output_format: Option<QueryOutputFormat>,
         #[command(subcommand)]
         command: Option<QueryCommands>,
+        #[arg(long)]
+        id: Option<u16>,
     },
 
     History {
