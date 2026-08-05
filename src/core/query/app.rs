@@ -131,14 +131,12 @@ impl App {
             KeyCode::Char('u') => match self.command {
                 TableCommand::ShowValue => self.update_selected_value(),
                 TableCommand::ShowTables => {}
-                _ => {}
             },
             KeyCode::Char('e') => self.toggle_query_expanded(),
             KeyCode::Char('p') => self.edit_query(),
             KeyCode::Enter => match self.command {
                 TableCommand::ShowTables => self.select_table(),
                 TableCommand::ShowValue => self.toggle_value_expanded(),
-                _ => {}
             },
             _ => {}
         }
@@ -356,7 +354,7 @@ impl App {
     fn expanded_value_line(&self) -> Option<Line<'static>> {
         self.selected_value()
             .filter(|_| self.value_expanded)
-            .map(|value| Line::from(vec!["Value [Enter to collapse]: ".into(), value.cyan()]))
+            .map(|value| Line::from(vec!["Value: ".into(), value.cyan()]))
     }
 
     fn header_height(&self, available_width: usize) -> u16 {
@@ -365,14 +363,8 @@ impl App {
             .iter()
             .map(|line| line.width().div_ceil(available_width).max(1))
             .sum::<usize>();
-        let value_height = self
-            .expanded_value_line()
-            .map(|line| line.width().div_ceil(available_width).max(1))
-            .unwrap_or(0);
 
-        query_height
-            .saturating_add(value_height)
-            .min(u16::MAX as usize) as u16
+        query_height.saturating_add(1).min(u16::MAX as usize) as u16
     }
 
     fn render_header(&self, area: Rect, buf: &mut Buffer) {
