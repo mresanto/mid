@@ -43,10 +43,14 @@ pub async fn execute_mysql_query(
                     let type_name = column.type_info().name();
                     match type_name {
                         "VARCHAR" | "CHAR" | "TEXT" | "TINYTEXT" | "MEDIUMTEXT" | "LONGTEXT"
-                        | "ENUM" | "SET" | "JSON" | "DATE" | "TIME" | "DATETIME" | "TIMESTAMP"
-                        | "YEAR" => row
-                            .try_get::<String, _>(column_name)
-                            .map(DbValue::Text)
+                        | "ENUM" | "SET" | "DATE" | "TIME" | "DATETIME" | "TIMESTAMP" | "YEAR" => {
+                            row.try_get::<String, _>(column_name)
+                                .map(DbValue::Text)
+                                .unwrap_or(DbValue::Null)
+                        }
+                        "JSON" => row
+                            .try_get::<serde_json::Value, _>(column_name)
+                            .map(DbValue::Json)
                             .unwrap_or(DbValue::Null),
                         "DECIMAL" | "NEWDECIMAL" => row
                             .try_get::<String, _>(column_name)
@@ -137,6 +141,7 @@ pub fn update_table_mysql(
                 "'{}'",
                 format!("{{{}}}", values.join(",")).replace('\'', "''")
             ),
+            DbValue::Json(value) => format!("'{}'", value.to_string().replace('\'', "''")),
             DbValue::Numeric(value) => value.clone(),
             DbValue::Integer(value) => value.to_string(),
             DbValue::Float(value) if value.is_finite() => value.to_string(),
