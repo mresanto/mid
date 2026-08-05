@@ -518,7 +518,8 @@ impl App {
     }
 
     fn render_footer(&self, area: Rect, buf: &mut Buffer) {
-        let [_, duration_area, commands_area] = Layout::vertical([
+        let [_, duration_area, total_area, commands_area] = Layout::vertical([
+            Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Fill(1),
@@ -532,6 +533,14 @@ impl App {
         .alignment(ratatui::layout::HorizontalAlignment::Left)
         .dark_gray()
         .render(duration_area, buf);
+
+        Paragraph::new(Line::from(vec![
+            "Total Items: ".dark_gray(),
+            format!("{}", self.items.len()).blue(),
+        ]))
+        .alignment(ratatui::layout::HorizontalAlignment::Left)
+        .dark_gray()
+        .render(total_area, buf);
 
         Paragraph::new(self.footer_commands())
             .alignment(ratatui::layout::HorizontalAlignment::Center)
