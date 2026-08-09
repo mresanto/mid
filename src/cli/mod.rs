@@ -1,7 +1,7 @@
 use clap::Parser;
 use std::path::PathBuf;
 
-use crate::cli::commands::Commands;
+use crate::cli::commands::main_commands::Commands;
 
 pub mod commands;
 

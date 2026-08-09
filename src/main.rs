@@ -1,12 +1,12 @@
 use clap::Parser;
 
-use crate::cli::{
-    Cli,
-    commands::{
-        Commands, history::handle_history_command, list::handle_list_command,
-        query::handle_query_command, remote::handle_remote_command, status::handle_status_command,
-    },
-};
+use crate::cli::Cli;
+use crate::cli::commands::history::handle::handle_history_command;
+use crate::cli::commands::list::handle::handle_list_command;
+use crate::cli::commands::main_commands::Commands;
+use crate::cli::commands::query::handle::handle_query_command;
+use crate::cli::commands::remote::handle::handle_remote_command;
+use crate::cli::commands::status::handle_status_command;
 
 use crate::core::query::QueryOutputFormat;
 
