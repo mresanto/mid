@@ -35,19 +35,21 @@ impl<'a> Footer<'a> {
         let commands: &[(&str, &str)] = match self.command {
             TableCommand::ShowTables => &[
                 ("↑/↓ or j/k", "navigate"),
+                ("g", "go to"),
                 ("Enter", "select"),
                 ("y", "copy"),
                 ("e", "query"),
-                ("p", "edit"),
+                ("E", "edit"),
                 ("q", "quit"),
             ],
             TableCommand::ShowValue => &[
                 ("↑/↓/←/→ or j/k/h/l", "navigate"),
+                ("g", "go to"),
                 ("Enter", "value"),
                 ("y", "copy"),
                 ("u", "update"),
                 ("e", "query"),
-                ("p", "edit"),
+                ("E", "edit"),
                 ("q", "quit"),
             ],
         };

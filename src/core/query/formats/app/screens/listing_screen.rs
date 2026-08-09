@@ -10,7 +10,8 @@ use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
-    widgets::{StatefulWidget, TableState, Widget},
+    text::Line,
+    widgets::{Block, Clear, Paragraph, StatefulWidget, TableState, Widget},
 };
 
 use crate::core::{
@@ -37,6 +38,9 @@ pub struct QueryScreen {
     clipboard: Option<Clipboard>,
     event: Option<TableEvent>,
     duration: Duration,
+    show_popup_goto: bool,
+    goto_input: String,
+    goto_error: Option<String>,
 }
 
 impl QueryScreen {
@@ -71,6 +75,9 @@ impl QueryScreen {
         self.exit = false;
         self.event = None;
         self.value_expanded = false;
+        self.show_popup_goto = false;
+        self.goto_input.clear();
+        self.goto_error = None;
         self.column_offset = 0;
         self.selected_column = 0;
         self.table_state = TableState::default();
@@ -105,6 +112,11 @@ impl QueryScreen {
     }
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
+        if self.show_popup_goto {
+            self.handle_goto_key_event(key_event);
+            return;
+        }
+
         if key_event.code == KeyCode::Char('q') {
             self.exit();
             return;
@@ -115,7 +127,7 @@ impl QueryScreen {
             KeyCode::Up | KeyCode::Char('k') => self.select_previous_row(),
             KeyCode::Right | KeyCode::Char('l') => self.select_next_column(),
             KeyCode::Left | KeyCode::Char('h') => self.select_previous_column(),
-            KeyCode::Char('g') => self.select_first_row(),
+            KeyCode::Home => self.select_first_row(),
             KeyCode::Char('G') => self.select_last_row(),
             KeyCode::Char('y') => self.yank_selected_row(),
             KeyCode::Char('u') => match self.command {
@@ -123,13 +135,57 @@ impl QueryScreen {
                 TableCommand::ShowTables => {}
             },
             KeyCode::Char('e') => self.toggle_query_expanded(),
-            KeyCode::Char('p') => self.edit_query(),
+            KeyCode::Char('E') => self.edit_query(),
             KeyCode::Enter => match self.command {
                 TableCommand::ShowTables => self.select_table(),
                 TableCommand::ShowValue => self.toggle_value_expanded(),
             },
+            KeyCode::Char('g') => self.goto_index(),
             _ => {}
         }
+    }
+
+    fn goto_index(&mut self) {
+        self.show_popup_goto = true;
+        self.goto_input.clear();
+        self.goto_error = None;
+    }
+
+    fn handle_goto_key_event(&mut self, key_event: KeyEvent) {
+        match key_event.code {
+            KeyCode::Char(character) if character.is_ascii_digit() => {
+                self.goto_input.push(character);
+                self.goto_error = None;
+            }
+            KeyCode::Backspace => {
+                self.goto_input.pop();
+                self.goto_error = None;
+            }
+            KeyCode::Enter => self.submit_goto_index(),
+            KeyCode::Esc | KeyCode::Char('q') => self.close_goto_popup(),
+            _ => {}
+        }
+    }
+
+    fn submit_goto_index(&mut self) {
+        let Ok(row_number) = self.goto_input.parse::<usize>() else {
+            self.goto_error = Some("Enter a valid line number".to_string());
+            return;
+        };
+
+        if row_number == 0 || row_number > self.items.len() {
+            self.goto_error = Some(format!("Line must be between 1 and {}", self.items.len()));
+            return;
+        }
+
+        self.table_state.select(Some(row_number - 1));
+        self.close_goto_popup();
+    }
+
+    fn close_goto_popup(&mut self) {
+        self.show_popup_goto = false;
+        self.goto_input.clear();
+        self.goto_error = None;
     }
 
     fn edit_query(&mut self) {
@@ -357,5 +413,20 @@ impl Widget for &mut QueryScreen {
             &mut self.table_state,
         );
         Footer::new(&self.command, self.duration, &self.items).render(footer_area, buf);
+
+        if self.show_popup_goto {
+            let popup_block = Block::bordered().title(" Go to ");
+            let centered_area = area.centered(Constraint::Length(20), Constraint::Length(3));
+            Clear.render(centered_area, buf);
+
+            let mut lines = vec![Line::from(format!("Line: {}▏", self.goto_input))];
+            if let Some(error) = &self.goto_error {
+                lines.push(Line::from(error.clone()));
+            }
+
+            Paragraph::new(lines)
+                .block(popup_block)
+                .render(centered_area, buf);
+        }
     }
 }

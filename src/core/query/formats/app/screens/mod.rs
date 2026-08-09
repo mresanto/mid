@@ -1,3 +1,3 @@
-mod query;
+mod listing_screen;
 
-pub use query::QueryScreen;
+pub use listing_screen::QueryScreen;
