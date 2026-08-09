@@ -13,20 +13,22 @@ use ratatui::{
     widgets::{StatefulWidget, TableState, Widget},
 };
 
+use crate::core::query::TableEvent;
 use crate::core::{
     databases::{
         adapters::database_type::DbValue, application::tables::update::update_database_table,
     },
-    query::{TableCommand, TableEvent},
+    query::TableCommand,
 };
 
 use super::super::components::{
-    Footer, GotoPopup, Header, ResultsTable, ResultsTableData, format_db_value,
+    FilterPopup, Footer, GotoPopup, Header, ResultsTable, ResultsTableData, format_db_value,
 };
 
 #[derive(Default)]
 pub struct QueryScreen {
     items: Vec<HashMap<String, DbValue>>,
+    visible_indices: Vec<usize>,
     table_data: ResultsTableData,
     command: TableCommand,
     query: String,
@@ -40,6 +42,7 @@ pub struct QueryScreen {
     event: Option<TableEvent>,
     duration: Duration,
     goto_popup: GotoPopup,
+    filter_popup: FilterPopup,
     copied_cell: Option<(usize, usize, Instant)>,
 }
 
@@ -50,9 +53,11 @@ impl QueryScreen {
             table_state.select_first();
         }
         let table_data = ResultsTableData::new(&items);
+        let visible_indices = (0..items.len()).collect();
 
         Self {
             items,
+            visible_indices,
             table_data,
             command,
             query,
@@ -68,7 +73,8 @@ impl QueryScreen {
         query: String,
         duration: Duration,
     ) {
-        self.table_data = ResultsTableData::new(&items);
+        self.visible_indices = (0..items.len()).collect();
+        self.table_data = ResultsTableData::new_filtered(&items, &self.visible_indices);
         self.items = items;
         self.query = query;
         self.duration = duration;
@@ -76,6 +82,7 @@ impl QueryScreen {
         self.event = None;
         self.value_expanded = false;
         self.goto_popup.reset();
+        self.filter_popup.reset();
         self.copied_cell = None;
         self.column_offset = 0;
         self.selected_column = 0;
@@ -122,9 +129,16 @@ impl QueryScreen {
         if self.goto_popup.is_visible() {
             if let Some(index) = self
                 .goto_popup
-                .handle_key_event(key_event, self.items.len())
+                .handle_key_event(key_event, self.visible_indices.len())
             {
                 self.table_state.select(Some(index));
+            }
+            return;
+        }
+
+        if self.filter_popup.is_visible() {
+            if let Some(filter) = self.filter_popup.handle_key_event(key_event) {
+                self.apply_filter(&filter);
             }
             return;
         }
@@ -153,12 +167,45 @@ impl QueryScreen {
                 TableCommand::ShowValue => self.toggle_value_expanded(),
             },
             KeyCode::Char('g') => self.goto_index(),
+            KeyCode::Char('f') => self.filter_popup.open(),
             _ => {}
         }
     }
 
     fn goto_index(&mut self) {
         self.goto_popup.open();
+    }
+
+    fn apply_filter(&mut self, filter: &str) {
+        let Some(column) = self.selected_column_name() else {
+            return;
+        };
+        let filter = filter.to_lowercase();
+        self.visible_indices = self
+            .items
+            .iter()
+            .enumerate()
+            .filter_map(|(index, row)| {
+                let value = row
+                    .get(&column)
+                    .map_or_else(|| "null".to_string(), format_db_value);
+                (filter.is_empty() || value.to_lowercase().contains(filter.as_str()))
+                    .then_some(index)
+            })
+            .collect();
+        self.table_data = ResultsTableData::new_filtered(&self.items, &self.visible_indices);
+        self.table_state = TableState::default();
+        if !self.visible_indices.is_empty() {
+            self.table_state.select_first();
+        }
+        //self.value_expanded = false;
+        self.copied_cell = None;
+    }
+
+    fn selected_item_index(&self) -> Option<usize> {
+        self.table_state
+            .selected()
+            .and_then(|selected| self.visible_indices.get(selected).copied())
     }
 
     fn edit_query(&mut self) {
@@ -168,8 +215,7 @@ impl QueryScreen {
 
     fn update_selected_value(&mut self) {
         let Some(selected_row) = self
-            .table_state
-            .selected()
+            .selected_item_index()
             .and_then(|selected| self.items.get(selected))
         else {
             return;
@@ -240,8 +286,7 @@ impl QueryScreen {
 
     fn select_table(&mut self) {
         let Some(table_name) = self
-            .table_state
-            .selected()
+            .selected_item_index()
             .and_then(|selected| self.items.get(selected))
             .and_then(|row| row.get("table_name"))
             .map(format_db_value)
@@ -262,7 +307,7 @@ impl QueryScreen {
     }
 
     fn toggle_value_expanded(&mut self) {
-        let has_selection = self.table_state.selected().is_some_and(|selected| {
+        let has_selection = self.selected_item_index().is_some_and(|selected| {
             self.items.get(selected).is_some() && self.selected_column_name().is_some()
         });
         if has_selection {
@@ -271,18 +316,18 @@ impl QueryScreen {
     }
 
     fn select_next_row(&mut self) {
-        if self.items.is_empty() {
+        if self.visible_indices.is_empty() {
             return;
         }
 
         let current_row = self.table_state.selected().unwrap_or(0);
-        let last_row = self.items.len().saturating_sub(1);
+        let last_row = self.visible_indices.len().saturating_sub(1);
         self.table_state
             .select(Some(current_row.saturating_add(1).min(last_row)));
     }
 
     fn select_previous_row(&mut self) {
-        if self.items.is_empty() {
+        if self.visible_indices.is_empty() {
             return;
         }
 
@@ -300,13 +345,13 @@ impl QueryScreen {
     }
 
     fn select_first_row(&mut self) {
-        if !self.items.is_empty() {
+        if !self.visible_indices.is_empty() {
             self.table_state.select_first();
         }
     }
 
     fn select_last_row(&mut self) {
-        if !self.items.is_empty() {
+        if !self.visible_indices.is_empty() {
             self.table_state.select_last();
         }
     }
@@ -350,8 +395,7 @@ impl QueryScreen {
 
     fn selected_value(&self) -> Option<String> {
         let Some(row) = self
-            .table_state
-            .selected()
+            .selected_item_index()
             .and_then(|selected| self.items.get(selected))
         else {
             return None;
@@ -412,5 +456,6 @@ impl Widget for &mut QueryScreen {
         Footer::new(&self.command, self.duration, &self.items).render(footer_area, buf);
 
         (&self.goto_popup).render(area, buf);
+        (&self.filter_popup).render(area, buf);
     }
 }

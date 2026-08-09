@@ -24,6 +24,11 @@ pub(crate) struct ResultsTableData {
 
 impl ResultsTableData {
     pub(crate) fn new(items: &[HashMap<String, DbValue>]) -> Self {
+        let indices = (0..items.len()).collect::<Vec<_>>();
+        Self::new_filtered(items, &indices)
+    }
+
+    pub(crate) fn new_filtered(items: &[HashMap<String, DbValue>], indices: &[usize]) -> Self {
         let headers = items
             .iter()
             .flat_map(|row| row.keys().cloned())
@@ -39,8 +44,9 @@ impl ResultsTableData {
             };
         }
 
-        let rows = items
+        let rows = indices
             .iter()
+            .filter_map(|index| items.get(*index))
             .map(|row| {
                 headers
                     .iter()
@@ -62,7 +68,7 @@ impl ResultsTableData {
         Self {
             headers,
             rows,
-            item_count: items.len(),
+            item_count: indices.len(),
         }
     }
 }

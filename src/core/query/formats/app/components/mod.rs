@@ -1,9 +1,11 @@
+mod filter_popup;
 mod footer;
 mod goto_popup;
 mod header;
 mod results_table;
 mod value;
 
+pub(crate) use filter_popup::FilterPopup;
 pub(crate) use footer::Footer;
 pub(crate) use goto_popup::GotoPopup;
 pub(crate) use header::Header;

@@ -83,12 +83,12 @@ impl Widget for &GotoPopup {
         let popup_area = area.centered(Constraint::Length(40), Constraint::Length(3));
         Clear.render(popup_area, buf);
 
-        let mut title = "Go to line".to_string();
+        let mut title = " Go to ".to_string();
         if let Some(error) = &self.error {
             title = error.to_string();
         }
 
-        let para = Paragraph::new(vec![Line::from(format!("Line: {} ", self.input))])
+        let para = Paragraph::new(vec![Line::from(format!("{} ", self.input))])
             .block(Block::bordered().title(title));
 
         if self.error.is_some() {
