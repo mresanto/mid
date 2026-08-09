@@ -2,7 +2,7 @@ use crate::core::databases::adapters::database_type::DbValue;
 
 pub(crate) fn format_db_value(value: &DbValue) -> String {
     match value {
-        DbValue::Null => "null".to_string(),
+        DbValue::Null => "NULL".to_string(),
         DbValue::Text(value) => value.clone(),
         DbValue::DateTime(value) => value.to_string(),
         DbValue::TextArray(values) => format!("{{{}}}", values.join(",")),
@@ -12,7 +12,7 @@ pub(crate) fn format_db_value(value: &DbValue) -> String {
         DbValue::Numeric(value) => value.clone(),
         DbValue::Integer(value) => value.to_string(),
         DbValue::Float(value) if value.is_finite() => value.to_string(),
-        DbValue::Float(_) => "null".to_string(),
+        DbValue::Float(_) => "NULL".to_string(),
         DbValue::Boolean(value) => value.to_string(),
     }
 }

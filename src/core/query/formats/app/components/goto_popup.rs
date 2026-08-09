@@ -2,6 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
+    style::Stylize,
     text::Line,
     widgets::{Block, Clear, Paragraph, Widget},
 };
@@ -58,7 +59,7 @@ impl GotoPopup {
         };
 
         if line_number == 0 || line_number > line_count {
-            self.error = Some(format!("Line must be between 1 and {line_count}"));
+            self.error = Some(format!("Must be between 1 and {line_count}"));
             return None;
         }
 
@@ -79,16 +80,21 @@ impl Widget for &GotoPopup {
             return;
         }
 
-        let popup_area = area.centered(Constraint::Length(40), Constraint::Length(4));
+        let popup_area = area.centered(Constraint::Length(40), Constraint::Length(3));
         Clear.render(popup_area, buf);
 
-        let mut lines = vec![Line::from(format!("Line: {}▏", self.input))];
+        let mut title = "Go to line".to_string();
         if let Some(error) = &self.error {
-            lines.push(Line::from(error.clone()));
+            title = error.to_string();
         }
 
-        Paragraph::new(lines)
-            .block(Block::bordered().title(" Go to line "))
-            .render(popup_area, buf);
+        let para = Paragraph::new(vec![Line::from(format!("Line: {} ", self.input))])
+            .block(Block::bordered().title(title));
+
+        if self.error.is_some() {
+            para.red().render(popup_area, buf);
+        } else {
+            para.render(popup_area, buf);
+        }
     }
 }
