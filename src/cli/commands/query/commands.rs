@@ -5,8 +5,8 @@ use clap::Subcommand;
 pub enum QueryCommands {
     #[command(name = "last", visible_alias = "-", alias = "Last")]
     Last {
-        #[arg(short, long)]
-        output_format: Option<QueryOutputFormat>,
+        #[arg(long, value_enum, default_value = "table")]
+        output_format: QueryOutputFormat,
     },
     History {},
 }

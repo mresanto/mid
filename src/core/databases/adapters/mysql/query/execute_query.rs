@@ -36,6 +36,7 @@ pub async fn execute_mysql_query(
             let db_value = match row.try_get_raw(column_name) {
                 Ok(value_ref) if !value_ref.is_null() => {
                     let type_name = column.type_info().name();
+                    println!("{}", type_name);
                     match type_name {
                         "VARCHAR" | "CHAR" | "TEXT" | "TINYTEXT" | "MEDIUMTEXT" | "LONGTEXT"
                         | "ENUM" | "SET" | "DATE" | "TIME" | "DATETIME" | "TIMESTAMP" | "YEAR" => {

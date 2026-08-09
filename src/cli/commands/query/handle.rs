@@ -4,7 +4,7 @@ use crate::core::{self, query::QueryOutputFormat};
 pub async fn handle_query_command(
     command: &Option<QueryCommands>,
     query: &Option<String>,
-    output_format: &Option<QueryOutputFormat>,
+    output_format: &QueryOutputFormat,
     id: &Option<u16>,
 ) -> () {
     match command {
@@ -17,10 +17,7 @@ pub async fn handle_query_command(
                     Some(last) => {
                         let res = core::query::handle::handle_query_command(
                             last.query.clone(),
-                            output_format
-                                .as_ref()
-                                .unwrap_or(&QueryOutputFormat::Table)
-                                .clone(),
+                            output_format.clone(),
                             None,
                         )
                         .await;
@@ -46,10 +43,7 @@ pub async fn handle_query_command(
 
                 let res = core::query::handle::handle_query_command(
                     request.query.to_string(),
-                    output_format
-                        .as_ref()
-                        .unwrap_or(&QueryOutputFormat::Table)
-                        .clone(),
+                    output_format.clone(),
                     None,
                 )
                 .await;
@@ -68,10 +62,7 @@ pub async fn handle_query_command(
 
             let res = core::query::handle::handle_query_command(
                 query.to_string(),
-                output_format
-                    .as_ref()
-                    .unwrap_or(&QueryOutputFormat::Table)
-                    .clone(),
+                output_format.clone(),
                 None,
             )
             .await;
