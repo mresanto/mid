@@ -1,21 +1,11 @@
-use thiserror::Error;
+use crate::core::databases::adapters::mysql::query::list_table::list_tables_mysql;
+use crate::core::databases::adapters::postgres::query::list_table::list_tables_postgres;
 
 use crate::core::{
     config::manage,
-    databases::adapters::{
-        DatabaseType, mysql::query::list_tables_mysql, postgres::query::list_tables_postgres,
-    },
+    databases::{adapters::database_type::DatabaseType, application::tables::Error},
     globals,
 };
-
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("Failed to read config file: {0}")]
-    CurrentConfigError(#[from] manage::Error),
-
-    #[error("Failed to execute query")]
-    FailedToExecuteQuery(),
-}
 
 pub fn list_database_tables() -> Result<String, Error> {
     let file_path = globals::get_global_config_file_path();

@@ -16,7 +16,9 @@ use ratatui::{
 };
 
 use crate::core::{
-    databases::application::{query::DbValue, tables::update::update_database_table},
+    databases::{
+        adapters::database_type::DbValue, application::tables::update::update_database_table,
+    },
     query::{TableCommand, TableEvent},
 };
 

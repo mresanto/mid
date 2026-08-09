@@ -1,21 +1,10 @@
-use thiserror::Error;
-
+use crate::core::databases::adapters::mysql::query::select_table::select_table_mysql;
+use crate::core::databases::adapters::postgres::query::select_table::select_table_postgres;
 use crate::core::{
     config::manage,
-    databases::adapters::{
-        DatabaseType, mysql::query::select_table_mysql, postgres::query::select_table_postgres,
-    },
+    databases::{adapters::database_type::DatabaseType, application::tables::Error},
     globals,
 };
-
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("Failed to read config file: {0}")]
-    CurrentConfigError(#[from] manage::Error),
-
-    #[error("Failed to select table: unsupported database type")]
-    UnsupportedDatabase,
-}
 
 pub fn select_database_table(table_name: &str) -> Result<String, Error> {
     let file_path = globals::get_global_config_file_path();

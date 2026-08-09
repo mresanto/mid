@@ -15,7 +15,7 @@ pub async fn handle_query_command(
             match last_request {
                 Ok(history) => match history.requests.last() {
                     Some(last) => {
-                        let res = core::query::handle_query_command(
+                        let res = core::query::handle::handle_query_command(
                             last.query.clone(),
                             output_format
                                 .as_ref()
@@ -44,7 +44,7 @@ pub async fn handle_query_command(
                     .unwrap()
                     .expect("history request not found {id}");
 
-                let res = core::query::handle_query_command(
+                let res = core::query::handle::handle_query_command(
                     request.query.to_string(),
                     output_format
                         .as_ref()
@@ -66,7 +66,7 @@ pub async fn handle_query_command(
                 return;
             };
 
-            let res = core::query::handle_query_command(
+            let res = core::query::handle::handle_query_command(
                 query.to_string(),
                 output_format
                     .as_ref()

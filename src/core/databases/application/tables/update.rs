@@ -1,24 +1,13 @@
-use thiserror::Error;
-
+use crate::core::databases::adapters::mysql::query::update_table::update_table_mysql;
+use crate::core::databases::adapters::postgres::query::update_table::update_table_postgres;
 use crate::core::{
     config::manage,
     databases::{
-        adapters::{
-            DatabaseType, mysql::query::update_table_mysql, postgres::query::update_table_postgres,
-        },
-        application::query::DbValue,
+        adapters::database_type::{DatabaseType, DbValue},
+        application::tables::Error,
     },
     globals,
 };
-
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("Failed to read config file: {0}")]
-    CurrentConfigError(#[from] manage::Error),
-
-    #[error("Failed to update table: unsupported database type")]
-    UnsupportedDatabase,
-}
 
 pub fn update_database_table(
     table_name: &str,

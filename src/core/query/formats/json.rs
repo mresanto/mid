@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::core::databases::application::query::DbValue;
+use crate::core::databases::adapters::database_type::DbValue;
 
 pub fn render_output_as_json(items: Vec<HashMap<String, DbValue>>) {
     let json_elements = format_to_json_elements(items);

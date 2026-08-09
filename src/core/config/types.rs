@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::core::databases::adapters::DatabaseType;
+use crate::core::databases::adapters::database_type::DatabaseType;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct MidConfigFile {

@@ -1,14 +1,10 @@
 use std::collections::HashMap;
 
+use crate::core::databases::adapters::mysql::query::export_sql::generate_mysql_export;
+use crate::core::databases::adapters::postgres::query::export_sql::generate_postgres_export;
 use crate::core::{
     config::types::MidConfigFile,
-    databases::{
-        adapters::{
-            DatabaseType, mysql::query::generate_mysql_export,
-            postgres::query::generate_postgres_export,
-        },
-        application::query::DbValue,
-    },
+    databases::adapters::database_type::{DatabaseType, DbValue},
 };
 
 pub fn render_output_as_sql(

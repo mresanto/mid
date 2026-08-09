@@ -1,6 +1,6 @@
 use crate::core::{
     databases::application::tables,
-    query::{QueryOutputFormat, TableCommand, handle_query_command},
+    query::{QueryOutputFormat, TableCommand, handle::handle_query_command},
 };
 
 pub async fn handle_list_command(
