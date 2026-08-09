@@ -20,11 +20,12 @@ use crate::core::{
     query::{TableCommand, TableEvent},
 };
 
-use super::super::components::{Footer, Header, ResultsTable, format_db_value};
+use super::super::components::{Footer, Header, ResultsTable, ResultsTableData, format_db_value};
 
 #[derive(Default)]
 pub struct QueryScreen {
     items: Vec<HashMap<String, DbValue>>,
+    table_data: ResultsTableData,
     command: TableCommand,
     query: String,
     query_expanded: bool,
@@ -44,9 +45,11 @@ impl QueryScreen {
         if !items.is_empty() {
             table_state.select_first();
         }
+        let table_data = ResultsTableData::new(&items);
 
         Self {
             items,
+            table_data,
             command,
             query,
             table_state,
@@ -61,6 +64,7 @@ impl QueryScreen {
         query: String,
         duration: Duration,
     ) {
+        self.table_data = ResultsTableData::new(&items);
         self.items = items;
         self.query = query;
         self.duration = duration;
@@ -229,7 +233,10 @@ impl QueryScreen {
     }
 
     fn toggle_value_expanded(&mut self) {
-        if self.selected_value().is_some() {
+        let has_selection = self.table_state.selected().is_some_and(|selected| {
+            self.items.get(selected).is_some() && self.selected_column_name().is_some()
+        });
+        if has_selection {
             self.value_expanded = !self.value_expanded;
         }
     }
@@ -323,10 +330,11 @@ impl QueryScreen {
 impl Widget for &mut QueryScreen {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let available_width = usize::from(area.width.max(1));
+        let selected_value = self.value_expanded.then(|| self.selected_value()).flatten();
         let header = Header::new(
             &self.query,
             self.query_expanded,
-            self.selected_value(),
+            selected_value,
             self.value_expanded,
         );
 
@@ -339,7 +347,11 @@ impl Widget for &mut QueryScreen {
 
         header.render(header_area, buf);
         StatefulWidget::render(
-            ResultsTable::new(&self.items, self.selected_column, &mut self.column_offset),
+            ResultsTable::new(
+                &self.table_data,
+                self.selected_column,
+                &mut self.column_offset,
+            ),
             table_area,
             buf,
             &mut self.table_state,

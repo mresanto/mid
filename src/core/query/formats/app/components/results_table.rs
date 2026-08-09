@@ -13,29 +13,18 @@ use super::format_db_value;
 
 const COLUMN_WIDTH: u16 = 20;
 const COLUMN_SPACING: u16 = 1;
+const MAX_CELL_CHARACTERS: usize = 50;
 
-pub(crate) struct ResultsTable<'a> {
-    items: &'a [HashMap<String, DbValue>],
-    selected_column: usize,
-    column_offset: &'a mut usize,
+#[derive(Default)]
+pub(crate) struct ResultsTableData {
+    headers: Vec<String>,
+    rows: Vec<Vec<String>>,
+    item_count: usize,
 }
 
-impl<'a> ResultsTable<'a> {
-    pub(crate) fn new(
-        items: &'a [HashMap<String, DbValue>],
-        selected_column: usize,
-        column_offset: &'a mut usize,
-    ) -> Self {
-        Self {
-            items,
-            selected_column,
-            column_offset,
-        }
-    }
-
-    fn elements(&self) -> (Vec<String>, Vec<Vec<String>>) {
-        let headers = self
-            .items
+impl ResultsTableData {
+    pub(crate) fn new(items: &[HashMap<String, DbValue>]) -> Self {
+        let headers = items
             .iter()
             .flat_map(|row| row.keys().cloned())
             .collect::<BTreeSet<_>>()
@@ -43,23 +32,58 @@ impl<'a> ResultsTable<'a> {
             .collect::<Vec<_>>();
 
         if headers.is_empty() {
-            return (vec!["result".into()], vec![vec!["No rows".into()]]);
+            return Self {
+                headers: vec!["result".into()],
+                rows: vec![vec!["No rows".into()]],
+                item_count: 0,
+            };
         }
 
-        let rows = self
-            .items
+        let rows = items
             .iter()
             .map(|row| {
                 headers
                     .iter()
                     .map(|header| {
-                        row.get(header)
-                            .map_or_else(|| "null".into(), format_db_value)
+                        row.get(header).map_or_else(
+                            || "null".into(),
+                            |value| {
+                                format_db_value(value)
+                                    .chars()
+                                    .take(MAX_CELL_CHARACTERS)
+                                    .collect()
+                            },
+                        )
                     })
                     .collect()
             })
             .collect();
-        (headers, rows)
+
+        Self {
+            headers,
+            rows,
+            item_count: items.len(),
+        }
+    }
+}
+
+pub(crate) struct ResultsTable<'a> {
+    data: &'a ResultsTableData,
+    selected_column: usize,
+    column_offset: &'a mut usize,
+}
+
+impl<'a> ResultsTable<'a> {
+    pub(crate) fn new(
+        data: &'a ResultsTableData,
+        selected_column: usize,
+        column_offset: &'a mut usize,
+    ) -> Self {
+        Self {
+            data,
+            selected_column,
+            column_offset,
+        }
     }
 }
 
@@ -67,8 +91,8 @@ impl StatefulWidget for ResultsTable<'_> {
     type State = TableState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        let (headers, row_values) = self.elements();
-        let row_number_width = self.items.len().max(1).to_string().len() as u16;
+        let headers = &self.data.headers;
+        let row_number_width = self.data.item_count.max(1).to_string().len() as u16;
         let data_width = area.width.saturating_sub(row_number_width + COLUMN_SPACING);
         let visible_columns = ((data_width.saturating_add(COLUMN_SPACING))
             / (COLUMN_WIDTH + COLUMN_SPACING))
@@ -93,8 +117,8 @@ impl StatefulWidget for ResultsTable<'_> {
             .style(Style::new().bold())
             .bottom_margin(1);
 
-        let has_items = !self.items.is_empty();
-        let rows = row_values.into_iter().enumerate().map(|(index, row)| {
+        let has_items = self.data.item_count > 0;
+        let rows = self.data.rows.iter().enumerate().map(|(index, row)| {
             let mut cells = Vec::with_capacity(visible_columns + 1);
             cells.push(if has_items {
                 (index + 1).to_string()
@@ -102,9 +126,10 @@ impl StatefulWidget for ResultsTable<'_> {
                 String::new()
             });
             cells.extend(
-                row.into_iter()
+                row.iter()
                     .skip(*self.column_offset)
-                    .take(visible_columns),
+                    .take(visible_columns)
+                    .cloned(),
             );
             Row::new(cells)
         });
