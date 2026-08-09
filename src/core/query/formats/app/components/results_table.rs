@@ -71,6 +71,7 @@ pub(crate) struct ResultsTable<'a> {
     data: &'a ResultsTableData,
     selected_column: usize,
     column_offset: &'a mut usize,
+    copied_cell: Option<(usize, usize)>,
 }
 
 impl<'a> ResultsTable<'a> {
@@ -78,11 +79,13 @@ impl<'a> ResultsTable<'a> {
         data: &'a ResultsTableData,
         selected_column: usize,
         column_offset: &'a mut usize,
+        copied_cell: Option<(usize, usize)>,
     ) -> Self {
         Self {
             data,
             selected_column,
             column_offset,
+            copied_cell,
         }
     }
 }
@@ -155,5 +158,30 @@ impl StatefulWidget for ResultsTable<'_> {
                 .saturating_add(1),
         ));
         StatefulWidget::render(table, area, buf, state);
+
+        if let Some((copied_row, copied_column)) = self.copied_cell {
+            let row_offset = state.offset();
+            let visible_row = copied_row.saturating_sub(row_offset);
+            let row_is_visible = copied_row >= row_offset
+                && visible_row < usize::from(area.height.saturating_sub(2));
+            let column_is_visible = copied_column >= *self.column_offset
+                && copied_column < *self.column_offset + visible_columns;
+
+            if row_is_visible && column_is_visible {
+                let visible_column = copied_column - *self.column_offset;
+                let x = area
+                    .x
+                    .saturating_add(2)
+                    .saturating_add(row_number_width)
+                    .saturating_add(COLUMN_SPACING)
+                    .saturating_add(
+                        (visible_column as u16).saturating_mul(COLUMN_WIDTH + COLUMN_SPACING),
+                    );
+                let y = area.y.saturating_add(2).saturating_add(visible_row as u16);
+                let copied_area =
+                    Rect::new(x, y, COLUMN_WIDTH.min(area.right().saturating_sub(x)), 1);
+                buf.set_style(copied_area, Style::new().reversed().green());
+            }
+        }
     }
 }

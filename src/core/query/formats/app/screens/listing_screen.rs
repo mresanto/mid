@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeSet, HashMap},
     io,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use arboard::Clipboard;
@@ -10,8 +10,7 @@ use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
-    text::Line,
-    widgets::{Block, Clear, Paragraph, StatefulWidget, TableState, Widget},
+    widgets::{StatefulWidget, TableState, Widget},
 };
 
 use crate::core::{
@@ -21,7 +20,9 @@ use crate::core::{
     query::{TableCommand, TableEvent},
 };
 
-use super::super::components::{Footer, Header, ResultsTable, ResultsTableData, format_db_value};
+use super::super::components::{
+    Footer, GotoPopup, Header, ResultsTable, ResultsTableData, format_db_value,
+};
 
 #[derive(Default)]
 pub struct QueryScreen {
@@ -38,9 +39,8 @@ pub struct QueryScreen {
     clipboard: Option<Clipboard>,
     event: Option<TableEvent>,
     duration: Duration,
-    show_popup_goto: bool,
-    goto_input: String,
-    goto_error: Option<String>,
+    goto_popup: GotoPopup,
+    copied_cell: Option<(usize, usize, Instant)>,
 }
 
 impl QueryScreen {
@@ -75,9 +75,8 @@ impl QueryScreen {
         self.exit = false;
         self.event = None;
         self.value_expanded = false;
-        self.show_popup_goto = false;
-        self.goto_input.clear();
-        self.goto_error = None;
+        self.goto_popup.reset();
+        self.copied_cell = None;
         self.column_offset = 0;
         self.selected_column = 0;
         self.table_state = TableState::default();
@@ -89,6 +88,7 @@ impl QueryScreen {
     /// runs the application's main loop until the user quits
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<Option<TableEvent>> {
         while !self.exit {
+            self.expire_copied_highlight();
             terminal.draw(|frame| self.draw(frame))?;
             self.handle_events()?;
         }
@@ -100,6 +100,13 @@ impl QueryScreen {
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
+        if let Some((_, _, deadline)) = self.copied_cell {
+            let timeout = deadline.saturating_duration_since(Instant::now());
+            if !event::poll(timeout)? {
+                return Ok(());
+            }
+        }
+
         match event::read()? {
             // it's important to check that the event is a key press event as
             // crossterm also emits key release and repeat events on Windows.
@@ -112,8 +119,13 @@ impl QueryScreen {
     }
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
-        if self.show_popup_goto {
-            self.handle_goto_key_event(key_event);
+        if self.goto_popup.is_visible() {
+            if let Some(index) = self
+                .goto_popup
+                .handle_key_event(key_event, self.items.len())
+            {
+                self.table_state.select(Some(index));
+            }
             return;
         }
 
@@ -146,46 +158,7 @@ impl QueryScreen {
     }
 
     fn goto_index(&mut self) {
-        self.show_popup_goto = true;
-        self.goto_input.clear();
-        self.goto_error = None;
-    }
-
-    fn handle_goto_key_event(&mut self, key_event: KeyEvent) {
-        match key_event.code {
-            KeyCode::Char(character) if character.is_ascii_digit() => {
-                self.goto_input.push(character);
-                self.goto_error = None;
-            }
-            KeyCode::Backspace => {
-                self.goto_input.pop();
-                self.goto_error = None;
-            }
-            KeyCode::Enter => self.submit_goto_index(),
-            KeyCode::Esc | KeyCode::Char('q') => self.close_goto_popup(),
-            _ => {}
-        }
-    }
-
-    fn submit_goto_index(&mut self) {
-        let Ok(row_number) = self.goto_input.parse::<usize>() else {
-            self.goto_error = Some("Enter a valid line number".to_string());
-            return;
-        };
-
-        if row_number == 0 || row_number > self.items.len() {
-            self.goto_error = Some(format!("Line must be between 1 and {}", self.items.len()));
-            return;
-        }
-
-        self.table_state.select(Some(row_number - 1));
-        self.close_goto_popup();
-    }
-
-    fn close_goto_popup(&mut self) {
-        self.show_popup_goto = false;
-        self.goto_input.clear();
-        self.goto_error = None;
+        self.goto_popup.open();
     }
 
     fn edit_query(&mut self) {
@@ -343,14 +316,36 @@ impl QueryScreen {
             return;
         };
 
-        let message = match &mut self.clipboard {
+        let copied = match &mut self.clipboard {
             Some(clipboard) => match clipboard.set_text(text) {
-                Ok(()) => "Copied selected value".to_string(),
-                Err(error) => format!("Clipboard error: {error}"),
+                Ok(()) => true,
+                Err(_) => false,
             },
-            None => "Clipboard is unavailable".to_string(),
+            None => false,
         };
-        print!("{message}");
+
+        if copied {
+            if let Some(row) = self.table_state.selected() {
+                self.copied_cell = Some((
+                    row,
+                    self.selected_column,
+                    Instant::now() + Duration::from_millis(500),
+                ));
+            }
+        }
+    }
+
+    fn expire_copied_highlight(&mut self) {
+        if self
+            .copied_cell
+            .is_some_and(|(_, _, deadline)| Instant::now() >= deadline)
+        {
+            self.copied_cell = None;
+        }
+    }
+
+    fn copied_cell(&self) -> Option<(usize, usize)> {
+        self.copied_cell.map(|(row, column, _)| (row, column))
     }
 
     fn selected_value(&self) -> Option<String> {
@@ -387,6 +382,7 @@ impl Widget for &mut QueryScreen {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let available_width = usize::from(area.width.max(1));
         let selected_value = self.value_expanded.then(|| self.selected_value()).flatten();
+        let copied_cell = self.copied_cell();
         let header = Header::new(
             &self.query,
             self.query_expanded,
@@ -407,6 +403,7 @@ impl Widget for &mut QueryScreen {
                 &self.table_data,
                 self.selected_column,
                 &mut self.column_offset,
+                copied_cell,
             ),
             table_area,
             buf,
@@ -414,19 +411,6 @@ impl Widget for &mut QueryScreen {
         );
         Footer::new(&self.command, self.duration, &self.items).render(footer_area, buf);
 
-        if self.show_popup_goto {
-            let popup_block = Block::bordered().title(" Go to ");
-            let centered_area = area.centered(Constraint::Length(20), Constraint::Length(3));
-            Clear.render(centered_area, buf);
-
-            let mut lines = vec![Line::from(format!("Line: {}▏", self.goto_input))];
-            if let Some(error) = &self.goto_error {
-                lines.push(Line::from(error.clone()));
-            }
-
-            Paragraph::new(lines)
-                .block(popup_block)
-                .render(centered_area, buf);
-        }
+        (&self.goto_popup).render(area, buf);
     }
 }
