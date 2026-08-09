@@ -4,6 +4,7 @@ pub(crate) fn format_db_value(value: &DbValue) -> String {
     match value {
         DbValue::Null => "null".to_string(),
         DbValue::Text(value) => value.clone(),
+        DbValue::DateTime(value) => value.to_string(),
         DbValue::TextArray(values) => format!("{{{}}}", values.join(",")),
         DbValue::Json(value) => serde_json::to_string_pretty(value)
             .map(|json| json.lines().map(str::trim).collect::<Vec<_>>().join(" "))

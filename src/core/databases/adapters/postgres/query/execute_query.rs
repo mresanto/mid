@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use sqlx::{
     AssertSqlSafe, Column, Row, TypeInfo, ValueRef,
@@ -46,31 +45,10 @@ pub async fn execute_postgres_query(
                             .try_get::<Uuid, _>(column_name)
                             .map(|u| DbValue::Text(u.to_string()))
                             .unwrap_or(DbValue::Null),
-                        "TIMESTAMP" | "TIMESTAMPTZ" => {
-                            let decode_timestamp = || match catch_unwind(AssertUnwindSafe(|| {
-                                row.try_get::<chrono::DateTime<chrono::Utc>, _>(column_name)
-                            })) {
-                                Ok(Ok(dt)) => DbValue::Text(dt.to_rfc3339()),
-                                Ok(Err(_)) => DbValue::Null,
-                                Err(_) => DbValue::Text("<timestamp out of range>".to_string()),
-                            };
-
-                            match value_ref.as_bytes() {
-                                Ok(b"-infinity") => DbValue::Text("-infinity".to_string()),
-                                Ok(b"infinity") => DbValue::Text("infinity".to_string()),
-                                Ok(bytes) if bytes.len() == 8 => {
-                                    let mut raw = [0_u8; 8];
-                                    raw.copy_from_slice(bytes);
-
-                                    match i64::from_be_bytes(raw) {
-                                        i64::MIN => DbValue::Text("-infinity".to_string()),
-                                        i64::MAX => DbValue::Text("infinity".to_string()),
-                                        _ => decode_timestamp(),
-                                    }
-                                }
-                                _ => decode_timestamp(),
-                            }
-                        }
+                        "TIMESTAMP" | "TIMESTAMPTZ" => row
+                            .try_get::<chrono::DateTime<chrono::Utc>, _>(column_name)
+                            .map(|dt| DbValue::DateTime(dt))
+                            .unwrap_or(DbValue::Null),
                         "VARCHAR" | "TEXT" | "BPCHAR" | "NAME" => row
                             .try_get::<String, _>(column_name)
                             .map(DbValue::Text)

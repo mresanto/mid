@@ -1,3 +1,5 @@
+use sqlx::types::chrono;
+
 /// This module contains the database connection and related functionality.
 pub enum DatabaseType {
     /// The Postgres database type.
@@ -20,4 +22,5 @@ pub enum DbValue {
     Integer(i64),
     Float(f64),
     Boolean(bool),
+    DateTime(chrono::DateTime<chrono::Utc>),
 }

@@ -15,6 +15,7 @@ pub fn generate_mysql_export(table_name: &str, items: Vec<HashMap<String, DbValu
         match value {
             DbValue::Null => "NULL".to_string(),
             DbValue::Text(value) => format!("'{}'", value.replace('\'', "''")),
+            DbValue::DateTime(value) => format!("'{}'", value.to_string().replace('\'', "''")),
             DbValue::TextArray(values) => format!(
                 "'{}'",
                 format!("{{{}}}", values.join(",")).replace('\'', "''")
