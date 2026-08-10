@@ -23,6 +23,10 @@ pub(crate) struct ResultsTableData {
 }
 
 impl ResultsTableData {
+    pub fn item_count(&self) -> usize {
+        self.item_count
+    }
+
     pub(crate) fn new(items: &[HashMap<String, DbValue>]) -> Self {
         let indices = (0..items.len()).collect::<Vec<_>>();
         Self::new_filtered(items, &indices)
@@ -39,6 +43,14 @@ impl ResultsTableData {
         if headers.is_empty() {
             return Self {
                 headers: vec!["result".into()],
+                rows: vec![vec!["No rows".into()]],
+                item_count: 0,
+            };
+        }
+
+        if indices.is_empty() {
+            return Self {
+                headers: headers,
                 rows: vec![vec!["No rows".into()]],
                 item_count: 0,
             };

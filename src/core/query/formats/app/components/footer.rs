@@ -14,6 +14,7 @@ pub(crate) struct Footer<'a> {
     command: &'a TableCommand,
     duration: Duration,
     items: &'a [HashMap<String, DbValue>],
+    filtered_count: usize,
 }
 
 impl<'a> Footer<'a> {
@@ -23,11 +24,13 @@ impl<'a> Footer<'a> {
         command: &'a TableCommand,
         duration: Duration,
         items: &'a [HashMap<String, DbValue>],
+        filtered_count: usize,
     ) -> Self {
         Self {
             command,
             duration,
             items,
+            filtered_count,
         }
     }
 
@@ -83,12 +86,22 @@ impl Widget for Footer<'_> {
         .alignment(HorizontalAlignment::Left)
         .render(duration_area, buf);
 
-        Paragraph::new(Line::from(vec![
+        let mut lines = Line::from(vec![
             "Total Items: ".dark_gray(),
             self.items.len().to_string().blue(),
-        ]))
-        .alignment(HorizontalAlignment::Left)
-        .render(total_area, buf);
+        ]);
+
+        if self.filtered_count != self.items.len() {
+            lines.extend(Line::from(vec![
+                " (filtered: ".dark_gray(),
+                self.filtered_count.to_string().blue(),
+                ")".dark_gray(),
+            ]));
+        }
+
+        Paragraph::new(lines)
+            .alignment(HorizontalAlignment::Left)
+            .render(total_area, buf);
 
         Paragraph::new(self.commands())
             .alignment(HorizontalAlignment::Center)

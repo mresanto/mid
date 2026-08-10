@@ -453,7 +453,13 @@ impl Widget for &mut QueryScreen {
             buf,
             &mut self.table_state,
         );
-        Footer::new(&self.command, self.duration, &self.items).render(footer_area, buf);
+        Footer::new(
+            &self.command,
+            self.duration,
+            &self.items,
+            self.table_data.item_count(),
+        )
+        .render(footer_area, buf);
 
         (&self.goto_popup).render(area, buf);
         (&self.filter_popup).render(area, buf);
