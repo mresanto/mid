@@ -36,7 +36,10 @@ async fn main() {
         }
 
         Some(Commands::Remote { command }) => handle_remote_command(command),
-        Some(Commands::List { command }) => handle_list_command(command).await,
+        Some(Commands::List {
+            output_format,
+            table_name,
+        }) => handle_list_command(output_format, table_name).await,
         Some(Commands::Status {}) => handle_status_command(),
         Some(Commands::Query {
             query,
