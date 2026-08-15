@@ -8,12 +8,15 @@ pub async fn handle_query_command(
     id: &Option<u16>,
 ) -> () {
     match command {
-        Some(QueryCommands::Last { output_format }) => {
+        Some(QueryCommands::Last {
+            output_format,
+            skip,
+        }) => {
             let file_path_history = core::globals::get_global_history_file_path();
             let last_request = core::history::read_history(file_path_history);
 
             match last_request {
-                Ok(history) => match history.requests.last() {
+                Ok(history) => match history.requests.iter().rev().nth(*skip) {
                     Some(last) => {
                         let res = core::query::handle::handle_query_command(
                             last.query.clone(),
@@ -27,7 +30,11 @@ pub async fn handle_query_command(
                             Err(e) => eprintln!("Failed to execute query command: {e}"),
                         }
                     }
-                    _ => println!("No history found"),
+                    _ if history.requests.is_empty() => println!("No history found"),
+                    _ => println!(
+                        "Cannot skip {skip} queries: history contains only {} entries",
+                        history.requests.len()
+                    ),
                 },
                 Err(e) => println!("No history found {}", e),
             }
