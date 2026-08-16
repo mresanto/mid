@@ -35,8 +35,13 @@ pub enum Error {
     #[error("Fail to render query results")]
     RenderTable(#[from] color_eyre::Report),
 
-    #[error("Fail to open Editor")]
+    #[error("Failed to open editor; ensure the program in $EDITOR is available in PATH")]
     OpenEditor(),
+
+    #[error(
+        "$EDITOR is not configured; set it to an editor available in PATH (for example: export EDITOR=nvim)"
+    )]
+    EditorNotConfigured(),
 
     #[error("Fail to create temporary query file")]
     CreateTempFile(#[from] io::Error),

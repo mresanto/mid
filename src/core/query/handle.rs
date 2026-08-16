@@ -89,15 +89,19 @@ async fn execute(
 }
 
 fn edit_query(query: &str) -> color_eyre::Result<Option<String>> {
+    let editor = env::var("EDITOR")
+        .ok()
+        .filter(|editor| !editor.trim().is_empty())
+        .ok_or(Error::EditorNotConfigured())?;
+
     let (path, mut file) = create_query_temp_file()?;
     file.write_all(query.as_bytes())?;
     file.flush()?;
     drop(file);
 
-    let editor = env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
     let result = (|| -> color_eyre::Result<Option<String>> {
         let mut editor_parts = editor.split_whitespace();
-        let program = editor_parts.next().unwrap_or("vi");
+        let program = editor_parts.next().ok_or(Error::EditorNotConfigured())?;
         let status = Command::new(program)
             .args(editor_parts)
             .arg(&path)

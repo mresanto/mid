@@ -8,13 +8,7 @@ use crate::core::query::QueryOutputFormat;
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// does testing things
-    Test {
-        /// lists test values
-        #[arg(short, long)]
-        list: bool,
-    },
-
+    #[command(arg_required_else_help = true)]
     Remote {
         #[command(subcommand)]
         command: Option<RemoteCommands>,
@@ -32,7 +26,7 @@ pub enum Commands {
         output_format: QueryOutputFormat,
     },
 
-    #[command(args_conflicts_with_subcommands = true)]
+    #[command(args_conflicts_with_subcommands = true, arg_required_else_help = true)]
     Query {
         #[arg()]
         query: Option<String>,
@@ -44,6 +38,7 @@ pub enum Commands {
         id: Option<u16>,
     },
 
+    #[command(arg_required_else_help = true)]
     History {
         #[command(subcommand)]
         command: Option<HistoryCommands>,

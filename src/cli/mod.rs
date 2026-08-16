@@ -6,7 +6,7 @@ use crate::cli::commands::main_commands::Commands;
 pub mod commands;
 
 #[derive(Parser)]
-#[command(version, about, long_about = None)]
+#[command(version, about, long_about = None, arg_required_else_help = true)]
 pub struct Cli {
     /// Optional name to operate on
     pub(crate) name: Option<String>,
