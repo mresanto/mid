@@ -6,6 +6,7 @@ pub enum TableEvent {
     EditQuery(String),
     UpdateValue(String),
     SelectTable(String),
+    OpenSelectedRow(String),
 }
 use std::io;
 

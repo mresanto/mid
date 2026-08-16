@@ -5,7 +5,7 @@ use std::{
 };
 
 use arboard::Clipboard;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
@@ -148,6 +148,18 @@ impl QueryScreen {
             return;
         }
 
+        match (key_event.code, key_event.modifiers) {
+            (KeyCode::Enter, KeyModifiers::SHIFT) => match self.command {
+                TableCommand::ShowValue => self.open_selected_row(),
+                _ => {}
+            },
+            (KeyCode::Char('j'), KeyModifiers::CONTROL) => match self.command {
+                TableCommand::ShowValue => self.open_selected_row(),
+                _ => {}
+            },
+            _ => {}
+        }
+
         match key_event.code {
             KeyCode::Down | KeyCode::Char('j') => self.select_next_row(),
             KeyCode::Up | KeyCode::Char('k') => self.select_previous_row(),
@@ -239,7 +251,12 @@ impl QueryScreen {
         let Ok(update_query) = update_database_table(&table, &id_column, id, &column, value) else {
             return;
         };
-        self.event = Some(TableEvent::UpdateValue(update_query));
+        self.event = Some(TableEvent::UpdateValue(format!(
+            "-- Save and close to apply this update.\n\
+            -- Delete all file to cancel.\n\n\
+            {}",
+            update_query
+        )));
         self.exit();
     }
 
@@ -342,6 +359,14 @@ impl QueryScreen {
 
     fn select_previous_column(&mut self) {
         self.selected_column = self.selected_column.saturating_sub(1);
+    }
+
+    fn open_selected_row(&mut self) {
+        let Some(text) = self.selected_value() else {
+            return;
+        };
+        self.event = Some(TableEvent::OpenSelectedRow(text));
+        self.exit();
     }
 
     fn select_first_row(&mut self) {

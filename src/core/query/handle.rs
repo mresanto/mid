@@ -4,6 +4,7 @@ use std::{
     io::{self, Write},
     path::PathBuf,
     process::Command,
+    sync::atomic::{AtomicU64, Ordering},
 };
 
 use crate::core::{
@@ -15,6 +16,8 @@ use crate::core::{
         formats::{app::App, json::render_output_as_json, sql::render_output_as_sql},
     },
 };
+
+static TEMP_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 pub async fn handle_query_command(
     query: String,
@@ -48,13 +51,13 @@ async fn execute(
 
                 match event {
                     Some(TableEvent::EditQuery(query)) => {
-                        let Some(edited_query) = edit_query(&query)? else {
+                        let Some(edited_query) = open_editor_recover_text(&query)? else {
                             return Ok(None);
                         };
                         current_query = edited_query;
                     }
                     Some(TableEvent::UpdateValue(update_query)) => {
-                        let Some(update_query) = edit_query(&update_query)? else {
+                        let Some(update_query) = open_editor_recover_text(&update_query)? else {
                             continue;
                         };
                         if !update_query.trim().is_empty() {
@@ -63,6 +66,11 @@ async fn execute(
                             })
                             .await?;
                         }
+                    }
+                    Some(TableEvent::OpenSelectedRow(text)) => {
+                        let Some(_) = open_editor_recover_text(&text)? else {
+                            continue;
+                        };
                     }
                     event => return Ok(event),
                 }
@@ -88,7 +96,7 @@ async fn execute(
     }
 }
 
-fn edit_query(query: &str) -> color_eyre::Result<Option<String>> {
+fn open_editor_recover_text(query: &str) -> color_eyre::Result<Option<String>> {
     let editor = env::var("EDITOR")
         .ok()
         .filter(|editor| !editor.trim().is_empty())
@@ -119,8 +127,13 @@ fn edit_query(query: &str) -> color_eyre::Result<Option<String>> {
 }
 
 fn create_query_temp_file() -> std::result::Result<(PathBuf, fs::File), Error> {
+    let sequence = TEMP_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+
     for attempt in 0..100 {
-        let path = env::temp_dir().join(format!("mid-query-{}-{attempt}.sql", std::process::id()));
+        let path = env::temp_dir().join(format!(
+            "mid-query-{}-{sequence}-{attempt}.sql",
+            std::process::id()
+        ));
         match OpenOptions::new().write(true).create_new(true).open(&path) {
             Ok(file) => return Ok((path, file)),
             Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
