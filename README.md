@@ -51,6 +51,26 @@ If you're testing a local build, replace `mid` in the documentation examples wit
 cargo run -- --help
 ```
 
+## Shell completion
+
+Generate and install Fish completions in Fish's user completion directory:
+
+```sh
+mid generator --shell fish > ~/.config/fish/completions/mid.fish
+```
+
+Probably can work with other shells as well.
+
+try 
+```sh 
+mid generator --shell {bash,zsh,fish} > ~/.config/{bash,zsh,fish}/completions/mid.{bash,zsh,fish}
+```
+after add the completions directory to your shell's config:
+
+```sh
+echo 'source ~/.config/{bash,zsh,fish}/completions/mid.{bash,zsh,fish}'
+```
+
 ## Roadmap
 
 ### Safe mutation workflow
