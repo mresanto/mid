@@ -1,4 +1,5 @@
 use clap::Subcommand;
+use clap_complete::Shell;
 
 use crate::cli::commands::history::commands::HistoryCommands;
 // use crate::cli::commands::list::commands::ListCommands;
@@ -17,11 +18,8 @@ pub enum Commands {
     Status {},
 
     List {
-        // #[command(subcommand)]
-        // command: Option<ListCommands>,
         #[arg(short, long)]
         table_name: Option<String>,
-
         #[arg(long, value_enum, default_value = "table")]
         output_format: QueryOutputFormat,
     },
@@ -42,5 +40,10 @@ pub enum Commands {
     History {
         #[command(subcommand)]
         command: Option<HistoryCommands>,
+    },
+
+    Generator {
+        #[arg(long)]
+        shell: Shell,
     },
 }

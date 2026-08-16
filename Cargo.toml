@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 arboard = { version = "3.6.1", features = ["wayland-data-control"] }
 clap = { version = "4.6.1", features = ["derive"] }
+clap_complete = "4.6.9"
 color-eyre = "0.6.5"
 crossterm = "0.29.0"
 dirs = "6.0.0"
