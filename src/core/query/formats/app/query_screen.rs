@@ -5,17 +5,22 @@ use std::{
 };
 
 use arboard::Clipboard;
-use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
+use crossterm::{
+    event::{
+        self, Event, KeyEvent, KeyEventKind, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
+        PushKeyboardEnhancementFlags,
+    },
+    terminal::supports_keyboard_enhancement,
+};
 use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
-    widgets::{Paragraph, StatefulWidget, TableState, Widget},
+    widgets::{StatefulWidget, TableState, Widget},
 };
 
 use super::query_components::{
-    FilterPopup, Footer, GotoPopup, QueryPopup, QueryPopupView, ResultsTable, ResultsTableData,
-    format_db_value,
+    FilterPopup, Footer, GotoPopup, ResultsTable, ResultsTableData, format_db_value,
 };
 
 use crate::core::{
@@ -24,6 +29,38 @@ use crate::core::{
     globals,
     query::{TableCommand, TableEvent, formats::app::keybinds_events::KeybindEvents},
 };
+
+struct KeyboardEnhancementGuard {
+    enabled: bool,
+}
+
+impl KeyboardEnhancementGuard {
+    fn enable() -> io::Result<Self> {
+        let enabled = matches!(supports_keyboard_enhancement(), Ok(true));
+
+        if enabled {
+            crossterm::execute!(
+                io::stdout(),
+                PushKeyboardEnhancementFlags(
+                    KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES
+                        | KeyboardEnhancementFlags::REPORT_EVENT_TYPES
+                        | KeyboardEnhancementFlags::REPORT_ALTERNATE_KEYS
+                        | KeyboardEnhancementFlags::REPORT_ALL_KEYS_AS_ESCAPE_CODES
+                )
+            )?;
+        }
+
+        Ok(Self { enabled })
+    }
+}
+
+impl Drop for KeyboardEnhancementGuard {
+    fn drop(&mut self) {
+        if self.enabled {
+            let _ = crossterm::execute!(io::stdout(), PopKeyboardEnhancementFlags);
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct QueryScreen {
@@ -41,7 +78,6 @@ pub struct QueryScreen {
     duration: Duration,
     goto_popup: GotoPopup,
     filter_popup: FilterPopup,
-    query_popup: QueryPopup,
     copied_cell: Option<(usize, usize, Instant)>,
 }
 
@@ -81,7 +117,6 @@ impl QueryScreen {
         self.event = None;
         self.goto_popup.reset();
         self.filter_popup.reset();
-        self.query_popup.reset();
         self.copied_cell = None;
         self.column_offset = 0;
         self.selected_column = 0;
@@ -93,6 +128,8 @@ impl QueryScreen {
 
     /// runs the application's main loop until the user quits
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<Option<TableEvent>> {
+        let _keyboard_enhancement = KeyboardEnhancementGuard::enable()?;
+
         while !self.exit {
             self.expire_copied_highlight();
             terminal.draw(|frame| self.draw(frame))?;
@@ -142,17 +179,6 @@ impl QueryScreen {
             return;
         }
 
-        if self.query_popup.is_visible() {
-            if self.query_popup.handle_key_event(key_event) {
-                let copied = self
-                    .clipboard
-                    .as_mut()
-                    .is_some_and(|clipboard| clipboard.set_text(self.query.clone()).is_ok());
-                self.query_popup.set_copied(copied);
-            }
-            return;
-        }
-
         if let Some(event) = KeybindEvents::parse_to_event(&key_event, &self.command) {
             match event {
                 KeybindEvents::NextRow => self.select_next_row(),
@@ -163,7 +189,6 @@ impl QueryScreen {
                 KeybindEvents::LastRow => self.select_last_row(),
                 KeybindEvents::YankSelection => self.yank_selected_row(),
                 KeybindEvents::UpdateSelection => self.update_selected_value(),
-                KeybindEvents::ToggleQuery => self.query_popup.open(),
                 KeybindEvents::EditQuery => self.edit_query(),
                 KeybindEvents::TableSearch => self.select_table(),
                 KeybindEvents::GoToRow => self.goto_index(),
@@ -430,20 +455,8 @@ impl Widget for &mut QueryScreen {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let copied_cell = self.copied_cell();
 
-        let [header_area, table_area, footer_area] = Layout::vertical([
-            Constraint::Length(2),
-            Constraint::Fill(1),
-            Constraint::Length(Footer::HEIGHT),
-        ])
-        .areas(area);
-
-        let toggle_query = KeybindEvents::ToggleQuery;
-        Paragraph::new(format!(
-            "{} to show {}: ",
-            toggle_query.parse_to_command(),
-            toggle_query.label(),
-        ))
-        .render(header_area, buf);
+        let [table_area, footer_area] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(Footer::HEIGHT)]).areas(area);
 
         StatefulWidget::render(
             ResultsTable::new(
@@ -466,6 +479,5 @@ impl Widget for &mut QueryScreen {
 
         (&self.goto_popup).render(area, buf);
         (&self.filter_popup).render(area, buf);
-        QueryPopupView::new(&self.query_popup, &self.query).render(area, buf);
     }
 }

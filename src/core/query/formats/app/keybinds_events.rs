@@ -12,7 +12,6 @@ pub enum KeybindEvents {
     LastRow,
     YankSelection,
     UpdateSelection,
-    ToggleQuery,
     EditQuery,
     TableSearch,
     GoToRow,
@@ -36,7 +35,6 @@ impl KeybindEvents {
             KeyCode::Char('y') => Some(Self::YankSelection),
             KeyCode::Char('q') => Some(Self::Quit),
             KeyCode::Char('u') => Some(Self::UpdateSelection),
-            KeyCode::Char('t') => Some(Self::ToggleQuery),
             KeyCode::Char('e') => Some(Self::EditQuery),
             KeyCode::Enter => match command {
                 TableCommand::ShowTables => Some(Self::TableSearch),
@@ -58,7 +56,6 @@ impl KeybindEvents {
             Self::LastRow => "G",
             Self::YankSelection => "y",
             Self::UpdateSelection => "u",
-            Self::ToggleQuery => "t",
             Self::EditQuery => "e",
             Self::TableSearch => "Enter",
             Self::Filter => "f",
@@ -78,7 +75,6 @@ impl KeybindEvents {
             Self::LastRow => "last row",
             Self::YankSelection => "yank",
             Self::UpdateSelection => "update",
-            Self::ToggleQuery => "query",
             Self::EditQuery => "edit",
             Self::TableSearch => "select",
             Self::GoToRow => "go to",
@@ -96,7 +92,6 @@ impl KeybindEvents {
             KeybindEvents::Filter,
             KeybindEvents::TableSearch,
             KeybindEvents::YankSelection,
-            KeybindEvents::ToggleQuery,
             KeybindEvents::EditQuery,
             KeybindEvents::Quit,
         ];
@@ -110,7 +105,6 @@ impl KeybindEvents {
             KeybindEvents::OpenValue,
             KeybindEvents::YankSelection,
             KeybindEvents::UpdateSelection,
-            KeybindEvents::ToggleQuery,
             KeybindEvents::EditQuery,
             KeybindEvents::Quit,
         ];
