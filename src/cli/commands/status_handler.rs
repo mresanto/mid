@@ -1,6 +1,6 @@
 use crate::core::{config::manage, globals};
 
-pub fn handle_status_command() {
+pub fn status() {
     let file_path = globals::get_global_config_file_path();
     let current_config = manage::read_config(file_path);
 

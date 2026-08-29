@@ -1,6 +1,10 @@
-use crate::core::config::{manage, types::DatabaseConfig};
+use crate::core::{
+    config::{manage, types::DatabaseConfig},
+    globals::get_global_config_file_path,
+};
 
-pub fn list(file_path: &str) {
+pub fn list() {
+    let file_path = get_global_config_file_path();
     let res = manage::read_databases(file_path.to_owned());
 
     match res {
@@ -14,8 +18,9 @@ pub fn list(file_path: &str) {
     }
 }
 
-pub fn remove(file_path: &str, name: &str) {
-    let res = manage::remove_database(file_path.to_owned(), name.clone().to_owned());
+pub fn remove(name: &str) {
+    let file_path = get_global_config_file_path();
+    let res = manage::remove_database(file_path.to_owned(), name.to_owned());
 
     match res {
         Ok(_) => println!("Remote config removed successfully. Database: {}", name),
@@ -25,8 +30,9 @@ pub fn remove(file_path: &str, name: &str) {
     return;
 }
 
-pub fn switch(file_path: &str, name: &str) {
-    let res = manage::change_active_database(file_path.to_owned(), name.clone().to_owned());
+pub fn switch(name: &str) {
+    let file_path = get_global_config_file_path();
+    let res = manage::change_active_database(file_path.to_owned(), name.to_owned());
 
     match res {
         Ok(_) => println!("Switched active connection to {}", name),
@@ -36,11 +42,12 @@ pub fn switch(file_path: &str, name: &str) {
     return;
 }
 
-pub fn add(file_path: &str, name: &str, connection_string: &str) {
+pub fn add(name: &str, connection_string: &str) {
+    let file_path = get_global_config_file_path();
     let res = manage::add_database(
         file_path.to_owned(),
         DatabaseConfig {
-            name: name.clone().to_owned(),
+            name: name.to_owned(),
             connection_string: connection_string.to_owned(),
         },
     );

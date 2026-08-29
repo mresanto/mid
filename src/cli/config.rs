@@ -1,5 +1,6 @@
 use clap::Parser;
 use clap::Subcommand;
+use clap_complete::Shell;
 
 use crate::core::query::QueryOutputFormat;
 

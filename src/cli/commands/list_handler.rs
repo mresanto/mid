@@ -1,11 +1,10 @@
-// use crate::cli::commands::list::commands::ListCommands;
 use crate::core::query::{QueryOutputFormat, TableEvent};
 use crate::core::{
     databases::application::tables::{list::list_database_tables, select::select_database_table},
     query::{TableCommand, handle::handle_query_command},
 };
 
-pub async fn handle_list_command(output_format: &QueryOutputFormat, table_name: &Option<String>) {
+pub async fn list(output_format: &QueryOutputFormat, table_name: &Option<String>) {
     if let Some(table_name) = table_name {
         handle_selected_table(table_name, output_format).await;
         return;
