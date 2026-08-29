@@ -8,10 +8,8 @@ use ratatui::{
     widgets::{Paragraph, Widget},
 };
 
-use crate::core::{
-    databases::adapters::database_type::DbValue,
-    query::{TableCommand, formats::app::keybinds_events::KeybindEvents},
-};
+use super::super::keybinds_events::KeybindEvents;
+use crate::core::{databases::adapters::database_type::DbValue, query::TableCommand};
 
 pub(crate) struct Footer<'a> {
     command: &'a TableCommand,

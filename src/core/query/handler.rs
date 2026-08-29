@@ -9,13 +9,16 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::core::{
-    config::{manage, types::MidConfigFile},
-    databases::adapters::database_type::{DatabaseHandler, DbValue, Error as DatabaseError},
-    globals, history,
-    query::{
-        Error, QueryOutputFormat, TableCommand, TableEvent,
-        formats::{app::App, json::render_output_as_json},
+use crate::{
+    app::App,
+    core::{
+        config::{manage, types::MidConfigFile},
+        databases::adapters::database_type::{DatabaseHandler, DbValue, Error as DatabaseError},
+        globals, history,
+        query::{
+            Error, QueryOutputFormat, TableCommand, TableEvent,
+            formats::json::render_output_as_json,
+        },
     },
 };
 use sqlx::types::chrono::Utc;

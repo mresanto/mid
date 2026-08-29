@@ -24,11 +24,13 @@ use super::query_components::{
     FilterPopup, Footer, GotoPopup, ResultsTable, ResultsTableData, format_db_value,
 };
 
+use super::keybinds_events::KeybindEvents;
+
 use crate::core::{
     config::manage,
     databases::adapters::database_type::{DatabaseHandler, DbValue},
     globals,
-    query::{TableCommand, TableEvent, formats::app::keybinds_events::KeybindEvents},
+    query::{TableCommand, TableEvent},
 };
 
 struct KeyboardEnhancementGuard {

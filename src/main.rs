@@ -12,6 +12,7 @@ use crate::cli::config::MainCommands;
 use crate::cli::config::QueryCommands;
 use crate::cli::config::RemoteCommands;
 
+pub mod app;
 mod cli;
 mod core;
 
