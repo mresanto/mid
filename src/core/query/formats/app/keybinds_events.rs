@@ -76,7 +76,7 @@ impl KeybindEvents {
             Self::PreviousColumn => "previous column",
             Self::FirstRow => "first row",
             Self::LastRow => "last row",
-            Self::YankSelection => "copy",
+            Self::YankSelection => "yank",
             Self::UpdateSelection => "update",
             Self::ToggleQuery => "query",
             Self::EditQuery => "edit",

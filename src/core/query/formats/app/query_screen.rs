@@ -10,11 +10,12 @@ use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
-    widgets::{StatefulWidget, TableState, Widget},
+    widgets::{Paragraph, StatefulWidget, TableState, Widget},
 };
 
 use super::query_components::{
-    FilterPopup, Footer, GotoPopup, Header, ResultsTable, ResultsTableData, format_db_value,
+    FilterPopup, Footer, GotoPopup, QueryPopup, QueryPopupView, ResultsTable, ResultsTableData,
+    format_db_value,
 };
 
 use crate::core::{
@@ -31,8 +32,6 @@ pub struct QueryScreen {
     table_data: ResultsTableData,
     command: TableCommand,
     query: String,
-    query_expanded: bool,
-    value_expanded: bool,
     exit: bool,
     table_state: TableState,
     column_offset: usize,
@@ -42,6 +41,7 @@ pub struct QueryScreen {
     duration: Duration,
     goto_popup: GotoPopup,
     filter_popup: FilterPopup,
+    query_popup: QueryPopup,
     copied_cell: Option<(usize, usize, Instant)>,
 }
 
@@ -79,9 +79,9 @@ impl QueryScreen {
         self.duration = duration;
         self.exit = false;
         self.event = None;
-        self.value_expanded = false;
         self.goto_popup.reset();
         self.filter_popup.reset();
+        self.query_popup.reset();
         self.copied_cell = None;
         self.column_offset = 0;
         self.selected_column = 0;
@@ -142,6 +142,17 @@ impl QueryScreen {
             return;
         }
 
+        if self.query_popup.is_visible() {
+            if self.query_popup.handle_key_event(key_event) {
+                let copied = self
+                    .clipboard
+                    .as_mut()
+                    .is_some_and(|clipboard| clipboard.set_text(self.query.clone()).is_ok());
+                self.query_popup.set_copied(copied);
+            }
+            return;
+        }
+
         if let Some(event) = KeybindEvents::parse_to_event(&key_event, &self.command) {
             match event {
                 KeybindEvents::NextRow => self.select_next_row(),
@@ -152,7 +163,7 @@ impl QueryScreen {
                 KeybindEvents::LastRow => self.select_last_row(),
                 KeybindEvents::YankSelection => self.yank_selected_row(),
                 KeybindEvents::UpdateSelection => self.update_selected_value(),
-                KeybindEvents::ToggleQuery => self.toggle_query_expanded(),
+                KeybindEvents::ToggleQuery => self.query_popup.open(),
                 KeybindEvents::EditQuery => self.edit_query(),
                 KeybindEvents::TableSearch => self.select_table(),
                 KeybindEvents::GoToRow => self.goto_index(),
@@ -300,19 +311,6 @@ impl QueryScreen {
         self.exit = true;
     }
 
-    fn toggle_query_expanded(&mut self) {
-        self.query_expanded = !self.query_expanded;
-    }
-
-    fn toggle_value_expanded(&mut self) {
-        let has_selection = self.selected_item_index().is_some_and(|selected| {
-            self.items.get(selected).is_some() && self.selected_column_name().is_some()
-        });
-        if has_selection {
-            self.value_expanded = !self.value_expanded;
-        }
-    }
-
     fn select_next_row(&mut self) {
         if self.visible_indices.is_empty() {
             return;
@@ -430,24 +428,23 @@ impl QueryScreen {
 
 impl Widget for &mut QueryScreen {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let available_width = usize::from(area.width.max(1));
-        let selected_value = self.value_expanded.then(|| self.selected_value()).flatten();
         let copied_cell = self.copied_cell();
-        let header = Header::new(
-            &self.query,
-            self.query_expanded,
-            selected_value,
-            self.value_expanded,
-        );
 
         let [header_area, table_area, footer_area] = Layout::vertical([
-            Constraint::Length(header.height(available_width)),
+            Constraint::Length(2),
             Constraint::Fill(1),
             Constraint::Length(Footer::HEIGHT),
         ])
         .areas(area);
 
-        header.render(header_area, buf);
+        let toggle_query = KeybindEvents::ToggleQuery;
+        Paragraph::new(format!(
+            "{} to show {}: ",
+            toggle_query.parse_to_command(),
+            toggle_query.label(),
+        ))
+        .render(header_area, buf);
+
         StatefulWidget::render(
             ResultsTable::new(
                 &self.table_data,
@@ -469,5 +466,6 @@ impl Widget for &mut QueryScreen {
 
         (&self.goto_popup).render(area, buf);
         (&self.filter_popup).render(area, buf);
+        QueryPopupView::new(&self.query_popup, &self.query).render(area, buf);
     }
 }
