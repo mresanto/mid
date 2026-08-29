@@ -26,7 +26,8 @@ async fn main() {
             Some(RemoteCommands::Add {
                 name,
                 connection_string,
-            }) => remote_handler::add(name, connection_string.as_deref()),
+                database_type,
+            }) => remote_handler::add(name, connection_string.as_deref(), database_type.as_deref()),
             Some(RemoteCommands::Remove { name }) => remote_handler::remove(name),
             Some(RemoteCommands::Switch { name }) => remote_handler::switch(name),
             None => {}

@@ -2,6 +2,7 @@ use crate::{
     app::remote_add_screen::RemoteAddScreen,
     core::{
         config::{manage, types::DatabaseConfig},
+        editor::open_editor::open_editor_recover_text,
         globals::get_global_config_file_path,
     },
 };
@@ -45,9 +46,33 @@ pub fn switch(name: &str) {
     return;
 }
 
-pub fn add(name: &str, connection_string: Option<&str>) {
+pub fn add(name: &str, connection_string: Option<&str>, database_type: Option<&str>) {
     let connection_string = match connection_string {
         Some(connection_string) => connection_string.to_owned(),
+        None if database_type.is_some() => {
+            let template = match database_type {
+                Some("mysql") => "mysql://username:password@localhost:3306/database",
+                Some("postgres" | "postgresql") => {
+                    "postgres://username:password@localhost:5432/database"
+                }
+                error => {
+                    let error = error.unwrap_or_default().to_string();
+                    eprintln!("Unsupported database type: {error}");
+                    return;
+                }
+            };
+
+            match open_editor_recover_text(template) {
+                Ok(Some(connection_string)) if !connection_string.trim().is_empty() => {
+                    connection_string.trim().to_owned()
+                }
+                Ok(_) => return,
+                Err(error) => {
+                    eprintln!("Failed to open connection string editor: {error}");
+                    return;
+                }
+            }
+        }
         None => {
             let mut screen = RemoteAddScreen::new();
             match ratatui::run(|terminal| screen.run(terminal)) {

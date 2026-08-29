@@ -1,11 +1,5 @@
 use std::{
     collections::HashMap,
-    env,
-    fs::{self, OpenOptions},
-    io::{self, Write},
-    path::PathBuf,
-    process::Command,
-    sync::atomic::{AtomicU64, Ordering},
     time::{Duration, Instant},
 };
 
@@ -14,6 +8,7 @@ use crate::{
     core::{
         config::{manage, types::MidConfigFile},
         databases::adapters::database_type::{DatabaseHandler, DbValue, Error as DatabaseError},
+        editor::open_editor::open_editor_recover_text,
         globals, history,
         query::{
             Error, QueryOutputFormat, TableCommand, TableEvent,
@@ -22,8 +17,6 @@ use crate::{
     },
 };
 use sqlx::types::chrono::Utc;
-
-static TEMP_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 pub async fn handle_query_command(
     query: String,
@@ -91,57 +84,6 @@ async fn execute(
             Ok(None)
         }
     }
-}
-
-fn open_editor_recover_text(query: &str) -> color_eyre::Result<Option<String>> {
-    let editor = env::var("EDITOR")
-        .ok()
-        .filter(|editor| !editor.trim().is_empty())
-        .ok_or(Error::EditorNotConfigured())?;
-
-    let (path, mut file) = create_query_temp_file()?;
-    file.write_all(query.as_bytes())?;
-    file.flush()?;
-    drop(file);
-
-    let result = (|| -> color_eyre::Result<Option<String>> {
-        let mut editor_parts = editor.split_whitespace();
-        let program = editor_parts.next().ok_or(Error::EditorNotConfigured())?;
-        let status = Command::new(program)
-            .args(editor_parts)
-            .arg(&path)
-            .status()
-            .map_err(|_| Error::OpenEditor())?;
-        if !status.success() {
-            return Err(Error::OpenEditor().into());
-        }
-
-        Ok(Some(fs::read_to_string(&path)?))
-    })();
-
-    let _ = fs::remove_file(&path);
-    Ok(result?)
-}
-
-fn create_query_temp_file() -> std::result::Result<(PathBuf, fs::File), Error> {
-    let sequence = TEMP_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-
-    for attempt in 0..100 {
-        let path = env::temp_dir().join(format!(
-            "mid-query-{}-{sequence}-{attempt}.sql",
-            std::process::id()
-        ));
-        match OpenOptions::new().write(true).create_new(true).open(&path) {
-            Ok(file) => return Ok((path, file)),
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
-            Err(error) => return Err(Error::CreateTempFile(error)),
-        }
-    }
-
-    Err(Error::CreateTempFile(io::Error::new(
-        io::ErrorKind::AlreadyExists,
-        "could not create a unique query temporary file after 100 attempts",
-    )))
 }
 
 async fn execute_query_on_database(

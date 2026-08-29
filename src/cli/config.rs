@@ -86,6 +86,9 @@ pub enum RemoteCommands {
 
         #[arg(short, long)]
         name: String,
+
+        #[arg(short = 't', long)]
+        database_type: Option<String>,
     },
     Remove {
         #[arg()]
