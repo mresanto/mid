@@ -82,7 +82,7 @@ pub enum RemoteCommands {
     List {},
     Add {
         #[arg()]
-        connection_string: String,
+        connection_string: Option<String>,
 
         #[arg(short, long)]
         name: String,

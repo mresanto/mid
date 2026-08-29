@@ -1,6 +1,9 @@
-use crate::core::{
-    config::{manage, types::DatabaseConfig},
-    globals::get_global_config_file_path,
+use crate::{
+    app::remote_add_screen::RemoteAddScreen,
+    core::{
+        config::{manage, types::DatabaseConfig},
+        globals::get_global_config_file_path,
+    },
 };
 
 pub fn list() {
@@ -42,13 +45,28 @@ pub fn switch(name: &str) {
     return;
 }
 
-pub fn add(name: &str, connection_string: &str) {
+pub fn add(name: &str, connection_string: Option<&str>) {
+    let connection_string = match connection_string {
+        Some(connection_string) => connection_string.to_owned(),
+        None => {
+            let mut screen = RemoteAddScreen::new();
+            match ratatui::run(|terminal| screen.run(terminal)) {
+                Ok(Some(connection_string)) => connection_string,
+                Ok(None) => return,
+                Err(error) => {
+                    eprintln!("Failed to open remote connection form: {error}");
+                    return;
+                }
+            }
+        }
+    };
+
     let file_path = get_global_config_file_path();
     let res = manage::add_database(
         file_path.to_owned(),
         DatabaseConfig {
             name: name.to_owned(),
-            connection_string: connection_string.to_owned(),
+            connection_string,
         },
     );
 
