@@ -18,6 +18,7 @@ pub enum KeybindEvents {
     Filter,
     OpenValue,
     Quit,
+    SelectMode,
 }
 
 impl KeybindEvents {
@@ -42,6 +43,7 @@ impl KeybindEvents {
             },
             KeyCode::Char('f') => Some(Self::Filter),
             KeyCode::Char('o') => Some(Self::OpenValue),
+            KeyCode::Char('v') => Some(Self::SelectMode),
             _ => None,
         }
     }
@@ -62,6 +64,7 @@ impl KeybindEvents {
             Self::OpenValue => "Enter",
             Self::GoToRow => "Shift+g",
             Self::Quit => "q",
+            Self::SelectMode => "v",
         }
     }
 
@@ -81,6 +84,7 @@ impl KeybindEvents {
             Self::Filter => "filter",
             Self::OpenValue => "value",
             Self::Quit => "quit",
+            Self::SelectMode => "select mode",
         }
     }
 

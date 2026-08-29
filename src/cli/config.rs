@@ -74,9 +74,6 @@ pub enum QueryCommands {
     Last {
         #[arg(long, value_enum, default_value = "table")]
         output_format: QueryOutputFormat,
-
-        #[arg(short, long, default_value = "0")]
-        skip: usize,
     },
 }
 

@@ -201,9 +201,12 @@ impl QueryScreen {
                 KeybindEvents::Filter => self.filter_popup.open(),
                 KeybindEvents::OpenValue => self.open_selected_row(),
                 KeybindEvents::Quit => self.exit(),
+                KeybindEvents::SelectMode => self.select_mode(),
             }
         }
     }
+
+    fn select_mode(&mut self) {}
 
     fn goto_index(&mut self) {
         self.goto_popup.open();

@@ -1,11 +1,31 @@
 use crate::core::{self, query::QueryOutputFormat};
 
-pub async fn last(output_format: &QueryOutputFormat, skip: usize) {
+pub async fn last(output_format: &QueryOutputFormat) {
     let file_path_history = core::globals::get_global_history_file_path();
+    let config_file_path = core::globals::get_global_config_file_path();
     let last_request = core::history::read_history(file_path_history);
+    let config = match core::config::manage::read_config(config_file_path) {
+        Ok(config) => config,
+        Err(e) => {
+            eprintln!("Failed to read config: {e}");
+            return;
+        }
+    };
+    let active_database = match config.get_active_database() {
+        Some(database) => database,
+        None => {
+            eprintln!("No active remote connection");
+            return;
+        }
+    };
 
     match last_request {
-        Ok(history) => match history.requests.iter().rev().nth(skip) {
+        Ok(history) => match history
+            .requests
+            .iter()
+            .rev()
+            .find(|request| request.database == active_database.name)
+        {
             Some(last) => {
                 let res = core::query::handler::handle_query_command(
                     last.query.clone(),
@@ -19,11 +39,7 @@ pub async fn last(output_format: &QueryOutputFormat, skip: usize) {
                     Err(e) => eprintln!("Failed to execute query command: {e}"),
                 }
             }
-            _ if history.requests.is_empty() => println!("No history found"),
-            _ => println!(
-                "Cannot skip {skip} queries: history contains only {} entries",
-                history.requests.len()
-            ),
+            _ => println!("No history found for active database"),
         },
         Err(e) => println!("No history found {}", e),
     }

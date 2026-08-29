@@ -45,10 +45,7 @@ async fn main() {
             command,
             id,
         } => match command {
-            Some(QueryCommands::Last {
-                output_format,
-                skip,
-            }) => query_handler::last(output_format, *skip).await,
+            Some(QueryCommands::Last { output_format }) => query_handler::last(output_format).await,
             None => match id {
                 Some(id) => query_handler::by_id(output_format, id).await,
                 None => query_handler::query(query, output_format).await,
