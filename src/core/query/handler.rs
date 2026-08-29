@@ -12,12 +12,13 @@ use std::{
 use crate::core::{
     config::{manage, types::MidConfigFile},
     databases::adapters::database_type::{DatabaseHandler, DbValue, Error as DatabaseError},
-    globals,
+    globals, history,
     query::{
         Error, QueryOutputFormat, TableCommand, TableEvent,
         formats::{app::App, json::render_output_as_json},
     },
 };
+use sqlx::types::chrono::Utc;
 
 static TEMP_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
@@ -147,14 +148,24 @@ async fn execute_query_on_database(
     let file_path = globals::get_global_config_file_path();
     let config = manage::read_config(file_path)?;
 
-    let active_database = config.get_active_database();
-
-    if active_database.is_none() {
-        return Err(DatabaseError::NoActiveRemoteConnection);
-    }
+    let active_database = config
+        .get_active_database()
+        .ok_or(DatabaseError::NoActiveRemoteConnection)?;
+    let active_database_name = active_database.name.clone();
 
     let database = config.get_database_type()?;
     let res = database.execute(&query).await;
+
+    let history_file_path = globals::get_global_history_file_path();
+    if let Err(error) = history::add_request(
+        history_file_path,
+        query,
+        active_database_name,
+        Utc::now().to_rfc3339(),
+        res.is_ok(),
+    ) {
+        eprintln!("Failed to save query history: {error}");
+    }
 
     if res.is_err() {
         eprintln!("Failed to execute query: {res:?}");

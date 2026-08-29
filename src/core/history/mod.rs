@@ -14,6 +14,7 @@ pub struct HistoryRequest {
     pub query: String,
     pub database: String,
     pub created_at: String,
+    pub is_success: bool,
 }
 
 impl Default for HistoryRequest {
@@ -23,6 +24,7 @@ impl Default for HistoryRequest {
             query: String::new(),
             database: String::new(),
             created_at: String::new(),
+            is_success: false,
         }
     }
 }
@@ -79,6 +81,32 @@ pub fn save_history(file_path: String, content: MidHistoryFile) -> Result<(), Er
     fs::write(file_path, history_string)?;
 
     return Ok(());
+}
+
+pub fn add_request(
+    file_path: String,
+    query: String,
+    database: String,
+    created_at: String,
+    is_success: bool,
+) -> Result<(), Error> {
+    let mut history = read_history(file_path.clone())?;
+    let id = history
+        .requests
+        .iter()
+        .map(|request| request.id)
+        .max()
+        .unwrap_or(0)
+        .saturating_add(1);
+
+    history.requests.push(HistoryRequest {
+        id,
+        query,
+        database,
+        created_at,
+        is_success,
+    });
+    save_history(file_path, history)
 }
 
 #[allow(dead_code)]

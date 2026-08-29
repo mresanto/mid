@@ -7,8 +7,8 @@ use std::{
 use arboard::Clipboard;
 use crossterm::{
     event::{
-        self, Event, KeyEvent, KeyEventKind, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
-        PushKeyboardEnhancementFlags,
+        self, Event, KeyEvent, KeyEventKind, KeyModifiers, KeyboardEnhancementFlags,
+        PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
     },
     terminal::supports_keyboard_enhancement,
 };
@@ -153,7 +153,13 @@ impl QueryScreen {
         match event::read()? {
             // it's important to check that the event is a key press event as
             // crossterm also emits key release and repeat events on Windows.
-            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
+            Event::Key(key_event)
+                if key_event.kind == KeyEventKind::Press
+                    || (key_event.kind == KeyEventKind::Repeat
+                        && !key_event
+                            .modifiers
+                            .intersects(KeyModifiers::SHIFT | KeyModifiers::CONTROL)) =>
+            {
                 self.handle_key_event(key_event)
             }
             _ => {}
