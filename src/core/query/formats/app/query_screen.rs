@@ -5,7 +5,7 @@ use std::{
 };
 
 use arboard::Clipboard;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
@@ -13,16 +13,15 @@ use ratatui::{
     widgets::{StatefulWidget, TableState, Widget},
 };
 
-use crate::core::query::TableEvent;
-use crate::core::{
-    databases::{
-        adapters::database_type::DbValue, application::tables::update::update_database_table,
-    },
-    query::TableCommand,
+use super::query_components::{
+    FilterPopup, Footer, GotoPopup, Header, ResultsTable, ResultsTableData, format_db_value,
 };
 
-use super::super::components::{
-    FilterPopup, Footer, GotoPopup, Header, ResultsTable, ResultsTableData, format_db_value,
+use crate::core::{
+    config::manage,
+    databases::adapters::database_type::{DatabaseHandler, DbValue},
+    globals,
+    query::{TableCommand, TableEvent, formats::app::keybinds_events::KeybindEvents},
 };
 
 #[derive(Default)]
@@ -143,44 +142,24 @@ impl QueryScreen {
             return;
         }
 
-        if key_event.code == KeyCode::Char('q') {
-            self.exit();
-            return;
-        }
-
-        match (key_event.code, key_event.modifiers) {
-            (KeyCode::Enter, KeyModifiers::SHIFT) => match self.command {
-                TableCommand::ShowValue => self.open_selected_row(),
-                _ => {}
-            },
-            (KeyCode::Char('j'), KeyModifiers::CONTROL) => match self.command {
-                TableCommand::ShowValue => self.open_selected_row(),
-                _ => {}
-            },
-            _ => {}
-        }
-
-        match key_event.code {
-            KeyCode::Down | KeyCode::Char('j') => self.select_next_row(),
-            KeyCode::Up | KeyCode::Char('k') => self.select_previous_row(),
-            KeyCode::Right | KeyCode::Char('l') => self.select_next_column(),
-            KeyCode::Left | KeyCode::Char('h') => self.select_previous_column(),
-            KeyCode::Home => self.select_first_row(),
-            KeyCode::Char('G') => self.select_last_row(),
-            KeyCode::Char('y') => self.yank_selected_row(),
-            KeyCode::Char('u') => match self.command {
-                TableCommand::ShowValue => self.update_selected_value(),
-                TableCommand::ShowTables => {}
-            },
-            KeyCode::Char('e') => self.toggle_query_expanded(),
-            KeyCode::Char('E') => self.edit_query(),
-            KeyCode::Enter => match self.command {
-                TableCommand::ShowTables => self.select_table(),
-                TableCommand::ShowValue => self.toggle_value_expanded(),
-            },
-            KeyCode::Char('g') => self.goto_index(),
-            KeyCode::Char('f') => self.filter_popup.open(),
-            _ => {}
+        if let Some(event) = KeybindEvents::parse_to_event(&key_event, &self.command) {
+            match event {
+                KeybindEvents::NextRow => self.select_next_row(),
+                KeybindEvents::PreviousRow => self.select_previous_row(),
+                KeybindEvents::NextColumn => self.select_next_column(),
+                KeybindEvents::PreviousColumn => self.select_previous_column(),
+                KeybindEvents::FirstRow => self.select_first_row(),
+                KeybindEvents::LastRow => self.select_last_row(),
+                KeybindEvents::YankSelection => self.yank_selected_row(),
+                KeybindEvents::UpdateSelection => self.update_selected_value(),
+                KeybindEvents::ToggleQuery => self.toggle_query_expanded(),
+                KeybindEvents::EditQuery => self.edit_query(),
+                KeybindEvents::TableSearch => self.select_table(),
+                KeybindEvents::GoToRow => self.goto_index(),
+                KeybindEvents::Filter => self.filter_popup.open(),
+                KeybindEvents::OpenValue => self.open_selected_row(),
+                KeybindEvents::Quit => self.exit(),
+            }
         }
     }
 
@@ -248,9 +227,11 @@ impl QueryScreen {
         let Some(table) = Self::table_from_query(&self.query) else {
             return;
         };
-        let Ok(update_query) = update_database_table(&table, &id_column, id, &column, value) else {
-            return;
-        };
+
+        let file_path = globals::get_global_config_file_path();
+        let config = manage::read_config(file_path).unwrap();
+        let database = config.get_database_type().unwrap();
+        let update_query = database.update(&table, &id_column, id, &column, value);
         self.event = Some(TableEvent::UpdateValue(format!(
             "-- Save and close to apply this update.\n\
             -- Delete all file to cancel.\n\n\

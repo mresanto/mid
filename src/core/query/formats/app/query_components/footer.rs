@@ -8,7 +8,10 @@ use ratatui::{
     widgets::{Paragraph, Widget},
 };
 
-use crate::core::{databases::adapters::database_type::DbValue, query::TableCommand};
+use crate::core::{
+    databases::adapters::database_type::DbValue,
+    query::{TableCommand, formats::app::keybinds_events::KeybindEvents},
+};
 
 pub(crate) struct Footer<'a> {
     command: &'a TableCommand,
@@ -35,34 +38,15 @@ impl<'a> Footer<'a> {
     }
 
     fn commands(&self) -> Line<'static> {
-        let commands: &[(&str, &str)] = match self.command {
-            TableCommand::ShowTables => &[
-                ("j/k", "navigate"),
-                ("g", "go to"),
-                ("f", "filter"),
-                ("enter", "select"),
-                ("y", "copy"),
-                ("e", "query"),
-                ("E", "edit"),
-                ("q", "quit"),
-            ],
-            TableCommand::ShowValue => &[
-                ("j/k/h/l", "navigate"),
-                ("g", "go to"),
-                ("f", "filter"),
-                ("enter", "value"),
-                ("y", "copy"),
-                ("u", "update"),
-                ("e", "query"),
-                ("E", "edit"),
-                ("q", "quit"),
-            ],
-        };
-
         Line::from(
-            commands
+            KeybindEvents::footer_events(self.command)
                 .iter()
-                .flat_map(|&(key, action)| [key.yellow(), format!(" {action}  ").into()])
+                .flat_map(|event| {
+                    [
+                        event.parse_to_command().yellow(),
+                        format!(" {}  ", event.label()).into(),
+                    ]
+                })
                 .collect::<Vec<_>>(),
         )
         .dark_gray()

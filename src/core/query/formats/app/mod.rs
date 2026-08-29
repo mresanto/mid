@@ -1,4 +1,5 @@
-mod components;
-mod screens;
+mod keybinds_events;
+mod query_components;
+mod query_screen;
 
-pub use screens::QueryScreen as App;
+pub use query_screen::QueryScreen as App;
