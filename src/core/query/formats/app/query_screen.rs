@@ -200,6 +200,7 @@ impl QueryScreen {
                     KeybindEvents::LastRow => self.select_last_row(),
                     KeybindEvents::Quit => self.exit(),
                     KeybindEvents::OpenValue => self.select_value(),
+                    KeybindEvents::UpdateSelection => self.update_selected_values(),
                     KeybindEvents::SelectMode => self.select_mode(),
                     KeybindEvents::OpenValueInSelectMode => self.open_value_in_select_mode(),
                     _ => {}
@@ -317,9 +318,6 @@ impl QueryScreen {
         let Some(value) = selected_row.get(&column) else {
             return;
         };
-        // let Some(id_column) = self.first_column_name() else {
-        //     return;
-        // };q
         let id_column = "Id";
         let Some(id) = selected_row.get(id_column) else {
             panic!("No id column found in selected row");
@@ -331,12 +329,74 @@ impl QueryScreen {
         let file_path = globals::get_global_config_file_path();
         let config = manage::read_config(file_path).unwrap();
         let database = config.get_database_type().unwrap();
-        let update_query = database.update(&table, &id_column, id, &column, value);
+        let update_query = database.update(&table, &id_column, id, &[(&column, value)]);
         self.event = Some(TableEvent::UpdateValue(format!(
             "-- Save and close to apply this update.\n\
             -- Delete all file to cancel.\n\n\
             {}",
             update_query
+        )));
+        self.exit();
+    }
+
+    fn update_selected_values(&mut self) {
+        let Some(table) = Self::table_from_query(&self.query) else {
+            return;
+        };
+        if self.select_values.is_empty() {
+            return;
+        }
+
+        let headers = self
+            .items
+            .iter()
+            .flat_map(|row| row.keys().cloned())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        let mut selected_by_row = std::collections::BTreeMap::<usize, Vec<usize>>::new();
+        for &(row, column) in &self.select_values {
+            selected_by_row.entry(row).or_default().push(column);
+        }
+
+        let file_path = globals::get_global_config_file_path();
+        let config = manage::read_config(file_path).unwrap();
+        let database = config.get_database_type().unwrap();
+        let id_column = "Id";
+        let mut queries = Vec::new();
+
+        for (row_index, mut columns) in selected_by_row {
+            let Some(row) = self.items.get(row_index) else {
+                continue;
+            };
+            let Some(id) = row.get(id_column) else {
+                continue;
+            };
+            columns.sort_unstable();
+            columns.dedup();
+            let values = columns
+                .iter()
+                .filter_map(|column_index| {
+                    let column = headers.get(*column_index)?;
+                    let value = row.get(column)?;
+                    Some((column.as_str(), value))
+                })
+                .collect::<Vec<_>>();
+
+            if !values.is_empty() {
+                queries.push(database.update(&table, id_column, id, &values));
+            }
+        }
+
+        if queries.is_empty() {
+            return;
+        }
+
+        self.event = Some(TableEvent::UpdateValue(format!(
+            "-- Save and close to apply these updates.\n\
+            -- Delete all file to cancel.\n\n\
+            {}",
+            queries.join("\n\n")
         )));
         self.exit();
     }

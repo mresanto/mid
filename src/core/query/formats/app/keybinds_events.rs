@@ -125,6 +125,7 @@ impl KeybindEvents {
             KeybindEvents::FirstRow,
             KeybindEvents::LastRow,
             KeybindEvents::OpenValue,
+            KeybindEvents::UpdateSelection,
             KeybindEvents::SelectMode,
             KeybindEvents::Quit,
         ];

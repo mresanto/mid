@@ -62,8 +62,7 @@ pub trait DatabaseHandler {
         table_name: &str,
         id_column: &str,
         id: &DbValue,
-        column: &str,
-        value: &DbValue,
+        values: &[(&str, &DbValue)],
     ) -> String;
     fn table_name(&self, table_name: &str) -> String;
 }

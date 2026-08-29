@@ -43,10 +43,9 @@ impl DatabaseHandler for MySqlHandler {
         table_name: &str,
         id_column: &str,
         id: &DbValue,
-        column: &str,
-        value: &DbValue,
+        values: &[(&str, &DbValue)],
     ) -> String {
-        update_table_mysql(table_name, id_column, id, column, value)
+        update_table_mysql(table_name, id_column, id, values)
     }
 
     fn table_name(&self, table_name: &str) -> String {

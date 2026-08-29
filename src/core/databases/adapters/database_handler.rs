@@ -42,16 +42,11 @@ impl DatabaseHandler for DatabaseType {
         table_name: &str,
         id_column: &str,
         id: &DbValue,
-        column: &str,
-        value: &DbValue,
+        values: &[(&str, &DbValue)],
     ) -> String {
         match self {
-            DatabaseType::Postgres(handler) => {
-                handler.update(table_name, id_column, id, column, value)
-            }
-            DatabaseType::MySQL(handler) => {
-                handler.update(table_name, id_column, id, column, value)
-            }
+            DatabaseType::Postgres(handler) => handler.update(table_name, id_column, id, values),
+            DatabaseType::MySQL(handler) => handler.update(table_name, id_column, id, values),
             DatabaseType::SQLite() => todo!(),
         }
     }

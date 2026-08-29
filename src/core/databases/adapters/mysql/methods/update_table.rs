@@ -4,8 +4,7 @@ pub fn update_table_mysql(
     table_name: &str,
     id_column: &str,
     id: &DbValue,
-    column: &str,
-    value: &DbValue,
+    values: &[(&str, &DbValue)],
 ) -> String {
     fn identifier(value: &str) -> String {
         format!("`{}`", value.replace('`', "``"))
@@ -29,11 +28,16 @@ pub fn update_table_mysql(
         }
     }
 
+    let assignments = values
+        .iter()
+        .map(|(column, value)| format!("{} = {}", identifier(column), literal(value)))
+        .collect::<Vec<_>>()
+        .join(",\n    ");
+
     format!(
-        "UPDATE {}\nSET {} = {}\nWHERE {} = {};",
+        "UPDATE {}\nSET {}\nWHERE {} = {};",
         identifier(table_name),
-        identifier(column),
-        literal(value),
+        assignments,
         identifier(id_column),
         literal(id),
     )
