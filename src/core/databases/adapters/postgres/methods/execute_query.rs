@@ -1,18 +1,20 @@
 use std::collections::HashMap;
 
-use sqlx::types::chrono;
-use sqlx::{AssertSqlSafe, Column, Row, TypeInfo, ValueRef, mysql::MySqlPoolOptions};
+use sqlx::{
+    AssertSqlSafe, Column, Row, TypeInfo, ValueRef,
+    postgres::PgPoolOptions,
+    types::{Uuid, chrono},
+};
 
 use crate::core::config::types::DatabaseConfig;
-use crate::core::databases::adapters::database_type::DbValue;
-use crate::core::databases::adapters::mysql::query::Error;
+use crate::core::databases::adapters::database_type::{DbValue, Error};
 
 /// Use this method to run an arbitrary query on the active database connection.
-pub async fn execute_mysql_query(
+pub async fn execute_postgres_query(
     config: &DatabaseConfig,
     query: String,
 ) -> Result<Vec<HashMap<String, DbValue>>, Error> {
-    let pool = MySqlPoolOptions::new()
+    let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(&config.connection_string)
         .await?;
@@ -38,53 +40,47 @@ pub async fn execute_mysql_query(
                 Ok(value_ref) if !value_ref.is_null() => {
                     let type_name = column.type_info().name();
                     match type_name {
-                        "VARCHAR" | "CHAR" | "TEXT" | "TINYTEXT" | "MEDIUMTEXT" | "LONGTEXT"
-                        | "ENUM" | "SET" => row
+                        "UUID" => row
+                            .try_get::<Uuid, _>(column_name)
+                            .map(|u| DbValue::Text(u.to_string()))
+                            .unwrap_or(DbValue::Null),
+                        "TIMESTAMP" | "TIMESTAMPTZ" => row
+                            .try_get::<chrono::DateTime<chrono::Utc>, _>(column_name)
+                            .map(|dt| DbValue::DateTime(dt))
+                            .unwrap_or(DbValue::Null),
+                        "VARCHAR" | "TEXT" | "BPCHAR" | "NAME" => row
                             .try_get::<String, _>(column_name)
                             .map(DbValue::Text)
                             .unwrap_or(DbValue::Null),
-                        "DATE" | "TIME" | "DATETIME" | "TIMESTAMP" | "YEAR" => row
-                            .try_get::<chrono::DateTime<chrono::Utc>, _>(column_name)
-                            .map(DbValue::DateTime)
+                        "_TEXT" | "TEXT[]" => row
+                            .try_get::<Vec<String>, _>(column_name)
+                            .map(DbValue::TextArray)
                             .unwrap_or(DbValue::Null),
-                        "JSON" => row
-                            .try_get::<serde_json::Value, _>(column_name)
-                            .map(DbValue::Json)
-                            .unwrap_or(DbValue::Null),
-                        "DECIMAL" | "NEWDECIMAL" => row
+                        "NUMERIC" => row
                             .try_get::<String, _>(column_name)
                             .map(DbValue::Numeric)
                             .unwrap_or(DbValue::Null),
-                        "TINYINT" | "SMALLINT" | "MEDIUMINT" | "INT" | "INTEGER" => row
+                        "INT2" | "INT4" | "INTEGER" => row
                             .try_get::<i32, _>(column_name)
                             .map(|n| DbValue::Integer(n as i64))
                             .unwrap_or(DbValue::Null),
-                        "BIGINT" => row
+                        "INT8" | "BIGINT" => row
                             .try_get::<i64, _>(column_name)
                             .map(DbValue::Integer)
                             .unwrap_or(DbValue::Null),
-                        "BOOLEAN" | "BOOL" => row
+                        "BOOL" | "BOOLEAN" => row
                             .try_get::<bool, _>(column_name)
                             .map(DbValue::Boolean)
                             .unwrap_or(DbValue::Null),
-                        "FLOAT" => row
+                        "FLOAT4" | "REAL" => row
                             .try_get::<f32, _>(column_name)
                             .map(|n| DbValue::Float(n as f64))
                             .unwrap_or(DbValue::Null),
-                        "DOUBLE" => row
+                        "FLOAT8" | "DOUBLE PRECISION" => row
                             .try_get::<f64, _>(column_name)
                             .map(DbValue::Float)
                             .unwrap_or(DbValue::Null),
-                        "BIT" => row
-                            .try_get::<bool, _>(column_name)
-                            .map(DbValue::Boolean)
-                            .unwrap_or_else(|_| {
-                                row.try_get::<i64, _>(column_name)
-                                    .map(DbValue::Integer)
-                                    .unwrap_or(DbValue::Null)
-                            }),
-                        "BINARY" | "VARBINARY" | "BLOB" | "TINYBLOB" | "MEDIUMBLOB"
-                        | "LONGBLOB" => DbValue::Text("<binary>".to_string()),
+                        // Safe fallback for complex types (Timestamps, UUIDs, JSON columns)
                         _ => row
                             .try_get::<String, _>(column_name)
                             .map(DbValue::Text)

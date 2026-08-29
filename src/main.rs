@@ -33,7 +33,11 @@ async fn main() {
         MainCommands::List {
             output_format,
             table_name,
-        } => list_handler::list(output_format, table_name).await,
+        } => {
+            if let Err(e) = list_handler::list(output_format, table_name).await {
+                eprintln!("Failed to list tables: {e}");
+            }
+        }
         MainCommands::Status {} => status_handler::status(),
         MainCommands::Query {
             query,

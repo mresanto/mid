@@ -1,5 +1,5 @@
 pub mod formats;
-pub mod handle;
+pub mod handler;
 
 #[derive(Debug, Clone)]
 pub enum TableEvent {
@@ -12,7 +12,7 @@ use std::io;
 
 use thiserror::Error;
 
-use crate::core::databases::application::query;
+use crate::core::databases::adapters::database_type;
 
 #[derive(Debug, Clone, clap::ValueEnum)]
 pub enum QueryOutputFormat {
@@ -30,8 +30,8 @@ pub enum TableCommand {
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Fail to run the query :{0}")]
-    ExecuteQuery(#[from] query::Error),
+    #[error("Failed to run the database query: {0}")]
+    Database(#[from] database_type::Error),
 
     #[error("Fail to render query results")]
     RenderTable(#[from] color_eyre::Report),

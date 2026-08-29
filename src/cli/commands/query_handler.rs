@@ -7,7 +7,7 @@ pub async fn last(output_format: &QueryOutputFormat, skip: usize) {
     match last_request {
         Ok(history) => match history.requests.iter().rev().nth(skip) {
             Some(last) => {
-                let res = core::query::handle::handle_query_command(
+                let res = core::query::handler::handle_query_command(
                     last.query.clone(),
                     output_format.clone(),
                     None,
@@ -37,7 +37,7 @@ pub async fn by_id(output_format: &QueryOutputFormat, id: &u16) {
         .unwrap()
         .expect("history request not found {id}");
 
-    let res = core::query::handle::handle_query_command(
+    let res = core::query::handler::handle_query_command(
         request.query.to_string(),
         output_format.clone(),
         None,
@@ -57,7 +57,7 @@ pub async fn query(query: &Option<String>, output_format: &QueryOutputFormat) {
     };
 
     let res =
-        core::query::handle::handle_query_command(query.to_string(), output_format.clone(), None)
+        core::query::handler::handle_query_command(query.to_string(), output_format.clone(), None)
             .await;
 
     match res {

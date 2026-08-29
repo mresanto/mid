@@ -1,19 +1,21 @@
 use std::{
+    collections::HashMap,
     env,
     fs::{self, OpenOptions},
     io::{self, Write},
     path::PathBuf,
     process::Command,
     sync::atomic::{AtomicU64, Ordering},
+    time::{Duration, Instant},
 };
 
 use crate::core::{
-    databases::application::query::execute_query::{
-        RunQueryOnDatabaseCommandOptions, execute_query_on_database,
-    },
+    config::{manage, types::MidConfigFile},
+    databases::adapters::database_type::{DatabaseHandler, DbValue, Error as DatabaseError},
+    globals,
     query::{
         Error, QueryOutputFormat, TableCommand, TableEvent,
-        formats::{app::App, json::render_output_as_json, sql::render_output_as_sql},
+        formats::{app::App, json::render_output_as_json},
     },
 };
 
@@ -39,11 +41,7 @@ async fn execute(
             let mut app = App::new(Vec::new(), command, current_query.clone());
 
             loop {
-                let (items, duration, _) =
-                    execute_query_on_database(RunQueryOnDatabaseCommandOptions {
-                        query: current_query.clone(),
-                    })
-                    .await?;
+                let (items, duration, _) = execute_query_on_database(current_query.clone()).await?;
                 app.update_app_results(items, current_query.clone(), duration);
 
                 let event =
@@ -61,10 +59,7 @@ async fn execute(
                             continue;
                         };
                         if !update_query.trim().is_empty() {
-                            execute_query_on_database(RunQueryOnDatabaseCommandOptions {
-                                query: update_query,
-                            })
-                            .await?;
+                            execute_query_on_database(update_query).await?;
                         }
                     }
                     Some(TableEvent::OpenSelectedRow(text)) => {
@@ -77,19 +72,17 @@ async fn execute(
             }
         }
         QueryOutputFormat::Json => {
-            let (items, _, _) =
-                execute_query_on_database(RunQueryOnDatabaseCommandOptions { query }).await?;
+            let (items, _, _) = execute_query_on_database(query.clone()).await?;
 
             render_output_as_json(items);
             Ok(None)
         }
         QueryOutputFormat::Sql => {
-            let (items, _, config) = execute_query_on_database(RunQueryOnDatabaseCommandOptions {
-                query: query.clone(),
-            })
-            .await?;
+            let (items, _, config) = execute_query_on_database(query.clone()).await?;
+            let database = config.get_database_type()?;
 
-            println!("{}", render_output_as_sql(items, query, config));
+            let table_name = database.table_name(&query);
+            println!("{}", database.export(&table_name, items));
 
             Ok(None)
         }
@@ -145,4 +138,30 @@ fn create_query_temp_file() -> std::result::Result<(PathBuf, fs::File), Error> {
         io::ErrorKind::AlreadyExists,
         "could not create a unique query temporary file after 100 attempts",
     )))
+}
+
+async fn execute_query_on_database(
+    query: String,
+) -> Result<(Vec<HashMap<String, DbValue>>, Duration, MidConfigFile), DatabaseError> {
+    let start = Instant::now();
+    let file_path = globals::get_global_config_file_path();
+    let config = manage::read_config(file_path)?;
+
+    let active_database = config.get_active_database();
+
+    if active_database.is_none() {
+        return Err(DatabaseError::NoActiveRemoteConnection);
+    }
+
+    let database = config.get_database_type()?;
+    let res = database.execute(&query).await;
+
+    if res.is_err() {
+        eprintln!("Failed to execute query: {res:?}");
+        return Err(DatabaseError::FailedToExecuteQuery());
+    }
+
+    let response = res.unwrap();
+
+    Ok((response, start.elapsed(), config))
 }
