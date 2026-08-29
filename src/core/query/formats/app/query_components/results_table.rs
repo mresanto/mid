@@ -19,6 +19,7 @@ const MAX_CELL_CHARACTERS: usize = 50;
 pub(crate) struct ResultsTableData {
     headers: Vec<String>,
     rows: Vec<Vec<String>>,
+    source_indices: Vec<usize>,
     item_count: usize,
 }
 
@@ -44,6 +45,7 @@ impl ResultsTableData {
             return Self {
                 headers: vec!["result".into()],
                 rows: vec![vec!["No rows".into()]],
+                source_indices: Vec::new(),
                 item_count: 0,
             };
         }
@@ -52,6 +54,7 @@ impl ResultsTableData {
             return Self {
                 headers: headers,
                 rows: vec![vec!["No rows".into()]],
+                source_indices: Vec::new(),
                 item_count: 0,
             };
         }
@@ -80,6 +83,7 @@ impl ResultsTableData {
         Self {
             headers,
             rows,
+            source_indices: indices.to_vec(),
             item_count: indices.len(),
         }
     }
@@ -90,6 +94,7 @@ pub(crate) struct ResultsTable<'a> {
     selected_column: usize,
     column_offset: &'a mut usize,
     copied_cell: Option<(usize, usize)>,
+    selected_cells: &'a [(usize, usize)],
 }
 
 impl<'a> ResultsTable<'a> {
@@ -98,12 +103,14 @@ impl<'a> ResultsTable<'a> {
         selected_column: usize,
         column_offset: &'a mut usize,
         copied_cell: Option<(usize, usize)>,
+        selected_cells: &'a [(usize, usize)],
     ) -> Self {
         Self {
             data,
             selected_column,
             column_offset,
             copied_cell,
+            selected_cells,
         }
     }
 }
@@ -177,8 +184,45 @@ impl StatefulWidget for ResultsTable<'_> {
         ));
         StatefulWidget::render(table, area, buf, state);
 
+        let row_offset = state.offset();
+        let active_row = state.selected();
+        for &(source_row, selected_column) in self.selected_cells {
+            let Some(selected_row) = self
+                .data
+                .source_indices
+                .iter()
+                .position(|index| *index == source_row)
+            else {
+                continue;
+            };
+            if active_row == Some(selected_row) && selected_column == self.selected_column {
+                continue;
+            }
+
+            let visible_row = selected_row.saturating_sub(row_offset);
+            let row_is_visible = selected_row >= row_offset
+                && visible_row < usize::from(area.height.saturating_sub(2));
+            let column_is_visible = selected_column >= *self.column_offset
+                && selected_column < *self.column_offset + visible_columns;
+
+            if row_is_visible && column_is_visible {
+                let visible_column = selected_column.saturating_sub(*self.column_offset);
+                let x = area
+                    .x
+                    .saturating_add(2)
+                    .saturating_add(row_number_width)
+                    .saturating_add(COLUMN_SPACING)
+                    .saturating_add(
+                        (visible_column as u16).saturating_mul(COLUMN_WIDTH + COLUMN_SPACING),
+                    );
+                let y = area.y.saturating_add(2).saturating_add(visible_row as u16);
+                let selected_area =
+                    Rect::new(x, y, COLUMN_WIDTH.min(area.right().saturating_sub(x)), 1);
+                buf.set_style(selected_area, Style::new().bg(Color::Blue).fg(Color::White));
+            }
+        }
+
         if let Some((copied_row, copied_column)) = self.copied_cell {
-            let row_offset = state.offset();
             let visible_row = copied_row.saturating_sub(row_offset);
             let row_is_visible = copied_row >= row_offset
                 && visible_row < usize::from(area.height.saturating_sub(2));

@@ -19,6 +19,7 @@ pub enum KeybindEvents {
     OpenValue,
     Quit,
     SelectMode,
+    OpenValueInSelectMode,
 }
 
 impl KeybindEvents {
@@ -37,6 +38,9 @@ impl KeybindEvents {
             KeyCode::Char('q') => Some(Self::Quit),
             KeyCode::Char('u') => Some(Self::UpdateSelection),
             KeyCode::Char('e') => Some(Self::EditQuery),
+            KeyCode::Enter if input.modifiers.contains(KeyModifiers::SHIFT) => {
+                Some(Self::OpenValueInSelectMode)
+            }
             KeyCode::Enter => match command {
                 TableCommand::ShowTables => Some(Self::TableSearch),
                 TableCommand::ShowValue => Some(Self::OpenValue),
@@ -65,6 +69,7 @@ impl KeybindEvents {
             Self::GoToRow => "Shift+g",
             Self::Quit => "q",
             Self::SelectMode => "v",
+            Self::OpenValueInSelectMode => "Shift+Enter",
         }
     }
 
@@ -85,13 +90,20 @@ impl KeybindEvents {
             Self::OpenValue => "value",
             Self::Quit => "quit",
             Self::SelectMode => "select mode",
+            Self::OpenValueInSelectMode => "open value in select mode",
         }
     }
 
-    pub fn footer_events(command: &TableCommand) -> &'static [Self] {
+    pub fn footer_label(&self, select_mode: bool) -> &'static str {
+        match (self, select_mode) {
+            (Self::OpenValue, true) => "select value",
+            (Self::SelectMode, true) => "exit select mode",
+            _ => self.label(),
+        }
+    }
+
+    pub fn footer_events(command: &TableCommand, select_mode: bool) -> &'static [Self] {
         const TABLE_EVENTS: &[KeybindEvents] = &[
-            KeybindEvents::NextRow,
-            KeybindEvents::PreviousRow,
             KeybindEvents::GoToRow,
             KeybindEvents::Filter,
             KeybindEvents::TableSearch,
@@ -100,18 +112,26 @@ impl KeybindEvents {
             KeybindEvents::Quit,
         ];
         const VALUE_EVENTS: &[KeybindEvents] = &[
-            KeybindEvents::NextRow,
-            KeybindEvents::PreviousRow,
-            KeybindEvents::NextColumn,
-            KeybindEvents::PreviousColumn,
             KeybindEvents::GoToRow,
             KeybindEvents::Filter,
             KeybindEvents::OpenValue,
             KeybindEvents::YankSelection,
             KeybindEvents::UpdateSelection,
+            KeybindEvents::SelectMode,
             KeybindEvents::EditQuery,
             KeybindEvents::Quit,
         ];
+        const SELECT_EVENTS: &[KeybindEvents] = &[
+            KeybindEvents::FirstRow,
+            KeybindEvents::LastRow,
+            KeybindEvents::OpenValue,
+            KeybindEvents::SelectMode,
+            KeybindEvents::Quit,
+        ];
+
+        if select_mode {
+            return SELECT_EVENTS;
+        }
 
         match command {
             TableCommand::ShowTables => TABLE_EVENTS,

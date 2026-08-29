@@ -79,6 +79,8 @@ pub struct QueryScreen {
     goto_popup: GotoPopup,
     filter_popup: FilterPopup,
     copied_cell: Option<(usize, usize, Instant)>,
+    select_mode: bool,
+    select_values: Vec<(usize, usize)>,
 }
 
 impl QueryScreen {
@@ -118,6 +120,8 @@ impl QueryScreen {
         self.goto_popup.reset();
         self.filter_popup.reset();
         self.copied_cell = None;
+        self.select_mode = false;
+        self.select_values.clear();
         self.column_offset = 0;
         self.selected_column = 0;
         self.table_state = TableState::default();
@@ -185,6 +189,25 @@ impl QueryScreen {
             return;
         }
 
+        if self.select_mode {
+            if let Some(event) = KeybindEvents::parse_to_event(&key_event, &self.command) {
+                match event {
+                    KeybindEvents::NextRow => self.select_next_row(),
+                    KeybindEvents::PreviousRow => self.select_previous_row(),
+                    KeybindEvents::NextColumn => self.select_next_column(),
+                    KeybindEvents::PreviousColumn => self.select_previous_column(),
+                    KeybindEvents::FirstRow => self.select_first_row(),
+                    KeybindEvents::LastRow => self.select_last_row(),
+                    KeybindEvents::Quit => self.exit(),
+                    KeybindEvents::OpenValue => self.select_value(),
+                    KeybindEvents::SelectMode => self.select_mode(),
+                    KeybindEvents::OpenValueInSelectMode => self.open_value_in_select_mode(),
+                    _ => {}
+                }
+            }
+            return;
+        }
+
         if let Some(event) = KeybindEvents::parse_to_event(&key_event, &self.command) {
             match event {
                 KeybindEvents::NextRow => self.select_next_row(),
@@ -202,11 +225,43 @@ impl QueryScreen {
                 KeybindEvents::OpenValue => self.open_selected_row(),
                 KeybindEvents::Quit => self.exit(),
                 KeybindEvents::SelectMode => self.select_mode(),
+                _ => {}
             }
         }
     }
 
-    fn select_mode(&mut self) {}
+    fn open_value_in_select_mode(&mut self) {
+        let Some(text) = self.selected_values_text() else {
+            return;
+        };
+        self.event = Some(TableEvent::OpenSelectedRow(text));
+        self.exit();
+    }
+
+    fn select_mode(&mut self) {
+        self.select_mode = !self.select_mode;
+
+        if !self.select_mode {
+            self.select_values.clear();
+        }
+    }
+
+    fn select_value(&mut self) {
+        if self.select_mode {
+            if let Some(index) = self.selected_item_index() {
+                let selected_value = (index, self.selected_column);
+                if let Some(position) = self
+                    .select_values
+                    .iter()
+                    .position(|value| *value == selected_value)
+                {
+                    self.select_values.remove(position);
+                } else {
+                    self.select_values.push(selected_value);
+                }
+            }
+        }
+    }
 
     fn goto_index(&mut self) {
         self.goto_popup.open();
@@ -317,15 +372,6 @@ impl QueryScreen {
             .into_iter()
             .nth(self.selected_column)
     }
-
-    // fn first_column_name(&self) -> Option<String> {
-    //     self.items
-    //         .iter()
-    //         .flat_map(|row| row.keys().cloned())
-    //         .collect::<BTreeSet<_>>()
-    //         .into_iter()
-    //         .next()
-    // }
 
     fn select_table(&mut self) {
         let Some(table_name) = self
@@ -450,6 +496,48 @@ impl QueryScreen {
         )
     }
 
+    fn selected_values_text(&self) -> Option<String> {
+        if self.select_values.is_empty() {
+            return None;
+        }
+
+        let headers = self
+            .items
+            .iter()
+            .flat_map(|row| row.keys().cloned())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        let mut selected_values = self.select_values.clone();
+        selected_values.sort_unstable();
+
+        let mut rows = Vec::new();
+        let mut current_row = None;
+        let mut row_values = Vec::new();
+
+        for (row_index, column_index) in selected_values {
+            if current_row.is_some_and(|current| current != row_index) {
+                rows.push(row_values.join(" | "));
+                row_values.clear();
+            }
+            current_row = Some(row_index);
+
+            let value = self
+                .items
+                .get(row_index)
+                .and_then(|row| headers.get(column_index).and_then(|header| row.get(header)))
+                .map(format_db_value)
+                .unwrap_or_else(|| "null".to_string());
+            row_values.push(value);
+        }
+
+        if !row_values.is_empty() {
+            rows.push(row_values.join(" | "));
+        }
+
+        Some(rows.join("\n"))
+    }
+
     fn column_count(&self) -> usize {
         self.items
             .iter()
@@ -473,6 +561,7 @@ impl Widget for &mut QueryScreen {
                 self.selected_column,
                 &mut self.column_offset,
                 copied_cell,
+                &self.select_values,
             ),
             table_area,
             buf,
@@ -483,6 +572,8 @@ impl Widget for &mut QueryScreen {
             self.duration,
             &self.items,
             self.table_data.item_count(),
+            self.select_mode,
+            self.select_values.len(),
         )
         .render(footer_area, buf);
 

@@ -18,6 +18,8 @@ pub(crate) struct Footer<'a> {
     duration: Duration,
     items: &'a [HashMap<String, DbValue>],
     filtered_count: usize,
+    select_mode: bool,
+    selected_count: usize,
 }
 
 impl<'a> Footer<'a> {
@@ -28,23 +30,27 @@ impl<'a> Footer<'a> {
         duration: Duration,
         items: &'a [HashMap<String, DbValue>],
         filtered_count: usize,
+        select_mode: bool,
+        selected_count: usize,
     ) -> Self {
         Self {
             command,
             duration,
             items,
             filtered_count,
+            select_mode,
+            selected_count,
         }
     }
 
     fn commands(&self) -> Line<'static> {
         Line::from(
-            KeybindEvents::footer_events(self.command)
+            KeybindEvents::footer_events(self.command, self.select_mode)
                 .iter()
                 .flat_map(|event| {
                     [
                         event.parse_to_command().yellow(),
-                        format!(" {}  ", event.label()).into(),
+                        format!(" {}  ", event.footer_label(self.select_mode)).into(),
                     ]
                 })
                 .collect::<Vec<_>>(),
@@ -80,6 +86,13 @@ impl Widget for Footer<'_> {
                 " (filtered: ".dark_gray(),
                 self.filtered_count.to_string().blue(),
                 ")".dark_gray(),
+            ]));
+        }
+
+        if self.select_mode {
+            lines.extend(Line::from(vec![
+                " Selected: ".dark_gray(),
+                self.selected_count.to_string().blue(),
             ]));
         }
 
