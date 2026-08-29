@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, fs, path::PathBuf};
 
 /// The config file name.
 pub const CONFIG_FILE_NAME: &str = "mid/.midconfig.toml";
@@ -14,14 +14,18 @@ pub fn get_global_history_file_path() -> String {
 
 fn get_global_file_path(file_name: &str) -> String {
     let home_dir = dirs::config_dir().expect("Could not find home directory");
-    let file_path = home_dir.join(file_name);
-
-    return file_path.to_string_lossy().to_string();
+    return prepare_file_path(home_dir.join(file_name));
 }
 
 fn get_cache_file_path(file_name: &str) -> String {
     let home_dir = env::temp_dir();
-    let file_path = home_dir.join(file_name);
+    return prepare_file_path(home_dir.join(file_name));
+}
+
+fn prepare_file_path(file_path: PathBuf) -> String {
+    if let Some(parent) = file_path.parent() {
+        fs::create_dir_all(parent).expect("Could not create application directory");
+    }
 
     return file_path.to_string_lossy().to_string();
 }
