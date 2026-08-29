@@ -23,8 +23,8 @@ pub enum KeybindEvents {
 impl KeybindEvents {
     pub fn parse_to_event(input: &KeyEvent, command: &TableCommand) -> Option<Self> {
         match input.code {
-            KeyCode::Up | KeyCode::Char('j') => Some(Self::PreviousRow),
-            KeyCode::Down | KeyCode::Char('k') => Some(Self::NextRow),
+            KeyCode::Up | KeyCode::Char('k') => Some(Self::PreviousRow),
+            KeyCode::Down | KeyCode::Char('j') => Some(Self::NextRow),
             KeyCode::Left | KeyCode::Char('h') => Some(Self::PreviousColumn),
             KeyCode::Right | KeyCode::Char('l') => Some(Self::NextColumn),
             KeyCode::Char('g') if input.modifiers.contains(KeyModifiers::SHIFT) => {
@@ -48,8 +48,8 @@ impl KeybindEvents {
 
     pub fn parse_to_command(&self) -> &'static str {
         match self {
-            Self::NextRow => "j",
-            Self::PreviousRow => "k",
+            Self::NextRow => "k",
+            Self::PreviousRow => "j",
             Self::NextColumn => "l",
             Self::PreviousColumn => "h",
             Self::FirstRow => "g",
@@ -67,8 +67,8 @@ impl KeybindEvents {
 
     pub fn label(&self) -> &'static str {
         match self {
-            Self::NextRow => "next row",
-            Self::PreviousRow => "previous row",
+            Self::NextRow => "up",
+            Self::PreviousRow => "down",
             Self::NextColumn => "next column",
             Self::PreviousColumn => "previous column",
             Self::FirstRow => "first row",
