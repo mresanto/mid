@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     collections::{BTreeSet, HashMap},
     io,
     time::{Duration, Instant},
@@ -62,9 +63,16 @@ impl Drop for KeyboardEnhancementGuard {
     }
 }
 
+#[derive(Clone, Copy)]
+enum SortMode {
+    Asc,
+    Desc,
+}
+
 #[derive(Default)]
 pub struct QueryScreen {
     items: Vec<HashMap<String, DbValue>>,
+    original_items: Vec<HashMap<String, DbValue>>,
     visible_indices: Vec<usize>,
     table_data: ResultsTableData,
     command: TableCommand,
@@ -81,6 +89,8 @@ pub struct QueryScreen {
     copied_cell: Option<(usize, usize, Instant)>,
     select_mode: bool,
     select_values: Vec<(usize, usize)>,
+    sort_column: Option<String>,
+    sort_mode: Option<SortMode>,
 }
 
 impl QueryScreen {
@@ -93,6 +103,7 @@ impl QueryScreen {
         let visible_indices = (0..items.len()).collect();
 
         Self {
+            original_items: items.clone(),
             items,
             visible_indices,
             table_data,
@@ -112,6 +123,7 @@ impl QueryScreen {
     ) {
         self.visible_indices = (0..items.len()).collect();
         self.table_data = ResultsTableData::new_filtered(&items, &self.visible_indices);
+        self.original_items = items.clone();
         self.items = items;
         self.query = query;
         self.duration = duration;
@@ -122,6 +134,8 @@ impl QueryScreen {
         self.copied_cell = None;
         self.select_mode = false;
         self.select_values.clear();
+        self.sort_column = None;
+        self.sort_mode = None;
         self.column_offset = 0;
         self.selected_column = 0;
         self.table_state = TableState::default();
@@ -226,9 +240,42 @@ impl QueryScreen {
                 KeybindEvents::OpenValue => self.open_selected_row(),
                 KeybindEvents::Quit => self.exit(),
                 KeybindEvents::SelectMode => self.select_mode(),
+                KeybindEvents::SortByColumn => self.sort_by_column(),
                 _ => {}
             }
         }
+    }
+
+    fn sort_by_column(&mut self) {
+        let Some(column) = self.selected_column_name() else {
+            return;
+        };
+
+        if self.sort_column.as_deref() != Some(column.as_str()) {
+            self.sort_column = Some(column.clone());
+            self.sort_mode = Some(SortMode::Asc);
+        } else {
+            self.sort_mode = match self.sort_mode {
+                Some(SortMode::Asc) => Some(SortMode::Desc),
+                Some(SortMode::Desc) => None,
+                None => Some(SortMode::Asc),
+            };
+        }
+
+        self.items = self.original_items.clone();
+        match self.sort_mode {
+            Some(SortMode::Asc) => self
+                .items
+                .sort_by(|a, b| compare_db_values(a.get(&column), b.get(&column))),
+            Some(SortMode::Desc) => self
+                .items
+                .sort_by(|a, b| compare_db_values(b.get(&column), a.get(&column))),
+            None => {}
+        }
+        self.visible_indices = (0..self.items.len()).collect();
+        self.table_data = ResultsTableData::new(&self.items);
+        self.select_values.clear();
+        self.copied_cell = None;
     }
 
     fn open_value_in_select_mode(&mut self) {
@@ -608,6 +655,32 @@ impl QueryScreen {
     }
 }
 
+fn compare_db_values(left: Option<&DbValue>, right: Option<&DbValue>) -> Ordering {
+    match (left, right) {
+        (None | Some(DbValue::Null), None | Some(DbValue::Null)) => Ordering::Equal,
+        (None | Some(DbValue::Null), _) => Ordering::Greater,
+        (_, None | Some(DbValue::Null)) => Ordering::Less,
+        (Some(DbValue::Integer(left)), Some(DbValue::Integer(right))) => left.cmp(right),
+        (Some(DbValue::Float(left)), Some(DbValue::Float(right))) => {
+            left.partial_cmp(right).unwrap_or(Ordering::Equal)
+        }
+        (Some(DbValue::Boolean(left)), Some(DbValue::Boolean(right))) => left.cmp(right),
+        (Some(DbValue::DateTime(left)), Some(DbValue::DateTime(right))) => left.cmp(right),
+        (Some(DbValue::Text(left)), Some(DbValue::Text(right))) => left.cmp(right),
+        (Some(DbValue::TextArray(left)), Some(DbValue::TextArray(right))) => left.cmp(right),
+        (Some(DbValue::Numeric(left)), Some(DbValue::Numeric(right))) => {
+            match (left.parse::<f64>(), right.parse::<f64>()) {
+                (Ok(left), Ok(right)) => left.partial_cmp(&right).unwrap_or(Ordering::Equal),
+                _ => left.cmp(right),
+            }
+        }
+        (Some(DbValue::Json(left)), Some(DbValue::Json(right))) => {
+            left.to_string().cmp(&right.to_string())
+        }
+        (Some(left), Some(right)) => format_db_value(left).cmp(&format_db_value(right)),
+    }
+}
+
 impl Widget for &mut QueryScreen {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let copied_cell = self.copied_cell();
@@ -622,6 +695,9 @@ impl Widget for &mut QueryScreen {
                 &mut self.column_offset,
                 copied_cell,
                 &self.select_values,
+                self.sort_column
+                    .as_deref()
+                    .zip(self.sort_mode.map(|mode| matches!(mode, SortMode::Asc))),
             ),
             table_area,
             buf,

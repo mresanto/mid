@@ -95,6 +95,7 @@ pub(crate) struct ResultsTable<'a> {
     column_offset: &'a mut usize,
     copied_cell: Option<(usize, usize)>,
     selected_cells: &'a [(usize, usize)],
+    sort: Option<(&'a str, bool)>,
 }
 
 impl<'a> ResultsTable<'a> {
@@ -104,6 +105,7 @@ impl<'a> ResultsTable<'a> {
         column_offset: &'a mut usize,
         copied_cell: Option<(usize, usize)>,
         selected_cells: &'a [(usize, usize)],
+        sort: Option<(&'a str, bool)>,
     ) -> Self {
         Self {
             data,
@@ -111,6 +113,7 @@ impl<'a> ResultsTable<'a> {
             column_offset,
             copied_cell,
             selected_cells,
+            sort,
         }
     }
 }
@@ -140,7 +143,11 @@ impl StatefulWidget for ResultsTable<'_> {
         let visible_headers = headers[*self.column_offset..visible_end].to_vec();
         let mut table_headers = Vec::with_capacity(visible_headers.len() + 1);
         table_headers.push("#".to_string());
-        table_headers.extend(visible_headers.clone());
+        table_headers.extend(visible_headers.iter().map(|header| match self.sort {
+            Some((sort_column, true)) if sort_column == header => format!("{header} ↑"),
+            Some((sort_column, false)) if sort_column == header => format!("{header} ↓"),
+            _ => header.clone(),
+        }));
         let header = Row::new(table_headers)
             .style(Style::new().bold())
             .bottom_margin(1);

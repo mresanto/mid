@@ -20,6 +20,7 @@ pub enum KeybindEvents {
     Quit,
     SelectMode,
     OpenValueInSelectMode,
+    SortByColumn,
 }
 
 impl KeybindEvents {
@@ -35,6 +36,7 @@ impl KeybindEvents {
             KeyCode::Home | KeyCode::Char('g') => Some(Self::FirstRow),
             KeyCode::End | KeyCode::Char('G') => Some(Self::LastRow),
             KeyCode::Char('y') => Some(Self::YankSelection),
+            KeyCode::Char('s') => Some(Self::SortByColumn),
             KeyCode::Char('q') => Some(Self::Quit),
             KeyCode::Char('u') => Some(Self::UpdateSelection),
             KeyCode::Char('e') => Some(Self::EditQuery),
@@ -58,6 +60,7 @@ impl KeybindEvents {
             Self::PreviousRow => "j",
             Self::NextColumn => "l",
             Self::PreviousColumn => "h",
+            Self::SortByColumn => "s",
             Self::FirstRow => "g",
             Self::LastRow => "G",
             Self::YankSelection => "y",
@@ -80,6 +83,7 @@ impl KeybindEvents {
             Self::NextColumn => "next column",
             Self::PreviousColumn => "previous column",
             Self::FirstRow => "first row",
+            Self::SortByColumn => "sort by column",
             Self::LastRow => "last row",
             Self::YankSelection => "yank",
             Self::UpdateSelection => "update",
