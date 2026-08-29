@@ -1,4 +1,4 @@
-use crate::cli::commands::query::commands::QueryCommands;
+use crate::cli::commands::main_commands::QueryCommands;
 use crate::core::{self, query::QueryOutputFormat};
 
 pub async fn handle_query_command(

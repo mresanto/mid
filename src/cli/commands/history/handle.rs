@@ -1,5 +1,5 @@
 use crate::{
-    cli::commands::history::commands::HistoryCommands,
+    cli::commands::main_commands::HistoryCommands,
     core::{self},
 };
 

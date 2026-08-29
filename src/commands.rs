@@ -1,0 +1,100 @@
+use clap::Parser;
+use clap::Subcommand;
+
+use crate::core::query::QueryOutputFormat;
+
+#[derive(Parser)]
+#[command(
+    version,
+    about,
+    long_about = None,
+    arg_required_else_help = true
+)]
+pub struct Cli {
+    /// Turn debugging information on
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    pub debug: u8,
+
+    #[command(subcommand)]
+    pub command: MainCommands,
+}
+
+#[derive(Subcommand)]
+pub enum MainCommands {
+    #[command(arg_required_else_help = true)]
+    Remote {
+        #[command(subcommand)]
+        command: Option<RemoteCommands>,
+    },
+
+    Status {},
+
+    List {
+        #[arg(short, long)]
+        table_name: Option<String>,
+        #[arg(long, value_enum, default_value = "table")]
+        output_format: QueryOutputFormat,
+    },
+
+    #[command(args_conflicts_with_subcommands = true, arg_required_else_help = true)]
+    Query {
+        #[arg()]
+        query: Option<String>,
+        #[arg(long, value_enum, default_value = "table")]
+        output_format: QueryOutputFormat,
+        #[command(subcommand)]
+        command: Option<QueryCommands>,
+        #[arg(long)]
+        id: Option<u16>,
+    },
+
+    #[command(arg_required_else_help = true)]
+    History {
+        #[command(subcommand)]
+        command: Option<HistoryCommands>,
+    },
+
+    Generator {
+        #[arg(long)]
+        shell: Shell,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum HistoryCommands {
+    #[command(name = "last", visible_alias = "-", alias = "Last")]
+    Last,
+    List,
+}
+
+#[derive(Subcommand)]
+pub enum QueryCommands {
+    #[command(name = "last", visible_alias = "-", alias = "Last")]
+    Last {
+        #[arg(long, value_enum, default_value = "table")]
+        output_format: QueryOutputFormat,
+
+        #[arg(short, long, default_value = "0")]
+        skip: usize,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum RemoteCommands {
+    List {},
+    Add {
+        #[arg()]
+        connection_string: String,
+
+        #[arg(short, long)]
+        name: String,
+    },
+    Remove {
+        #[arg()]
+        name: String,
+    },
+    Switch {
+        #[arg()]
+        name: String,
+    },
+}
