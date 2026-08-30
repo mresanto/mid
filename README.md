@@ -1,15 +1,19 @@
 # mid
 
-`mid` is a terminal database client written in Rust. It manages database and fast viewing of query results.
+`mid` is a terminal database client written in Rust for managing connections,
+running queries, and quickly exploring results.
 
 > `mid` is currently under active development. 
 
 ## Features
 
 - PostgreSQL and MySQL connections.
+- Interactive and `$EDITOR`-based connection setup.
 - TUI-based interactive query-result table.
+- Column filtering and ascending/descending sorting.
+- Multi-cell selection and generated multi-row updates.
 - Query editing through `$EDITOR`.
-- Query history and replay.
+- Per-remote query history and replay.
 
 All commands, options, examples, TUI controls, and detailed feature explanations
 are documented in [FEATURES.md](FEATURES.md).
@@ -23,12 +27,16 @@ are documented in [FEATURES.md](FEATURES.md).
 | JSON output | Working | Working | Planned |
 | SQL `INSERT` export | Working | Working | Planned |
 | List and select tables | Working | Working | Planned |
+| Sort and filter results | Working | Working | Planned |
+| Multi-cell selection | Working | Working | Planned |
 | Update selected values | Experimental | Experimental | Planned |
 
 ## Requirements
 
 - Rust and Cargo.
-- A database connection string (PostgreSQL or MySQL).
+- PostgreSQL or MySQL access credentials.
+- `$EDITOR` for editor-based connection setup and query editing (optional for
+  other workflows).
 
 ## Installation
 

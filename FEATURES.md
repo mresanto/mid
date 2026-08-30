@@ -8,13 +8,13 @@ interactive table control.
 ```text
 mid --help
 mid remote list
-mid remote add <CONNECTION_STRING> [--name <NAME>]
+mid remote add [CONNECTION_STRING] --name <NAME> [--database-type <TYPE>]
 mid remote remove <NAME>
 mid remote switch <NAME>
 mid status
 mid list [--table-name <TABLE_NAME>] [--output-format <FORMAT>]
 mid query [QUERY] [--output-format <FORMAT>] [--id <ID>]
-mid query last [--skip <COUNT>] [--output-format <FORMAT>]
+mid query last [--output-format <FORMAT>]
 mid history list
 mid history last
 ```
@@ -51,7 +51,7 @@ Connections are called "remotes." The active remote is used by `query` and
 ### Add a remote
 
 ```sh
-mid remote add <CONNECTION_STRING> [--name <NAME>]
+mid remote add [CONNECTION_STRING] --name <NAME> [--database-type <TYPE>]
 ```
 
 Examples:
@@ -61,8 +61,22 @@ mid remote add 'postgres://user:password@localhost/app' --name app
 mid remote add 'mysql://user:password@localhost/app' --name app-mysql
 ```
 
-If `--name` is omitted, `mid` generates a name. Adding a remote does not activate
-it; use `remote switch` afterward.
+`--name` is required. If the connection string is omitted, `mid` opens an
+interactive form. The form supports PostgreSQL and MySQL, masks passwords, and
+uses `Tab` or `↑`/`↓` to move between fields. Use `←`/`→` to switch database
+type, `Ctrl+V` to paste into the active field, `Enter` to save, and `q` to
+cancel.
+
+You can instead request an editor template:
+
+```sh
+mid remote add --name app --database-type postgres
+mid remote add --name app-mysql --database-type mysql
+```
+
+This opens `$EDITOR` with a complete connection-string template. Saving and
+closing the editor adds the remote; leaving the content empty cancels. Adding a
+remote does not activate it, so use `remote switch` afterward.
 
 ### List remotes
 
@@ -98,11 +112,14 @@ Prints the name of the active remote.
 
 ## Configuration
 
-Remote configuration is stored globally in:
+Remote configuration is stored beneath the operating system's configuration
+directory. On systems that use XDG paths, the location is:
 
 ```text
-~/.midconfig.toml
+$XDG_CONFIG_HOME/mid/.midconfig.toml
 ```
+
+On a typical Linux installation, this is `~/.config/mid/.midconfig.toml`.
 
 Connection strings are currently stored as plain text. Protect this file with
 appropriate filesystem permissions and do not commit or share it.
@@ -139,18 +156,11 @@ The ID can be found with `mid history list`.
 # Latest query
 mid query last
 
-# Previous query
-mid query last --skip 1
-
-# Third newest query
-mid query last --skip 2
-
 # Replay with JSON output
-mid query last --skip 1 --output-format json
+mid query last --output-format json
 ```
 
-`--skip 0` means the latest query, `--skip 1` means the previous query, and so
-on. `-s` is the short form of `--skip`.
+`query last` uses the newest history entry for the active remote.
 
 ## Output formats
 
@@ -175,18 +185,19 @@ The table UI is used by query results and interactive table listing.
 | `j` / `k` | Select the next or previous row. |
 | `h` / `l` | Select the previous or next column. |
 | `Home` / `G` | Select the first or last visible row. |
-| `g` | Open the go-to-line popup. |
+| `Shift+g` | Open the go-to-line popup. |
 | `f` | Filter rows using the selected column. |
-| `Enter` | Expand a value, or select a table in table-list mode. |
+| `s` | Cycle the selected column through ascending, descending, and original order. |
+| `Enter` | Open a value, or select a table in table-list mode. |
 | `y` | Copy the selected value. |
-| `e` | Expand or collapse the displayed query. |
-| `E` | Edit the query using `$EDITOR`. |
+| `e` | Edit the query using `$EDITOR`. |
 | `u` | Prepare an update for the selected value (experimental). |
+| `v` | Enter or leave multi-cell selection mode. |
 | `q` | Quit. |
 
 ### Go to line
 
-Press `g`, enter a displayed line number, and press `Enter`. Use `Backspace` to
+Press `Shift+g`, enter a displayed line number, and press `Enter`. Use `Backspace` to
 edit the input. `Esc` or `q` closes the popup without moving.
 
 ### Filter
@@ -201,15 +212,15 @@ Press `y` to copy the full selected value. A successful copy briefly highlights
 that exact cell in green. Clipboard support depends on the desktop or terminal
 environment.
 
-### Expand values
+### Open values
 
-Press `Enter` in query-result mode to expand or collapse the selected value.
-Table previews may be shortened for performance; expansion and copying use the
-full value.
+Press `Enter` in query-result mode to open the full selected value. Table
+previews may be shortened for performance; opening and copying use the full
+value.
 
 ### Edit a query
 
-Press `E` to open the query in the editor configured by `$EDITOR`. Saving and
+Press `e` to open the query in the editor configured by `$EDITOR`. Saving and
 closing the editor reruns the edited query.
 
 `$EDITOR` is required, and its executable must be available in `PATH`:
@@ -230,6 +241,27 @@ EDITOR=nvim mid query 'SELECT * FROM users'
 Press `u` to prepare an update for the selected cell. This feature is
 experimental and currently depends on the expected identifier-column behavior.
 Review the generated query carefully before executing it.
+
+### Sort a column
+
+Select a column and press `s`. Repeated presses cycle through ascending,
+descending, and original result order. The active sort is shown with `↑` or `↓`
+in the column header. Selecting another column starts a new ascending sort.
+
+### Select and update multiple values
+
+Press `v` to enter selection mode, navigate to cells, and press `Enter` to
+toggle each cell. Selected cells use a distinct color. In selection mode:
+
+- `Shift+Enter` opens the selected values, joining cells from the same row with
+  ` | ` and separating rows with newlines.
+- `u` prepares updates for all selected cells. Assignments from the same row are
+  combined in one `SET` clause; different rows produce separate `UPDATE`
+  statements.
+- `v` leaves selection mode and clears the selection.
+
+Multi-cell update remains experimental. Review every generated statement before
+applying it.
 
 ## List command
 
@@ -257,7 +289,8 @@ mid list --table-name users --output-format sql
 
 ## History commands
 
-Executed queries are recorded with an ID, timestamp, SQL text, and remote name.
+Executed query attempts are recorded with an ID, timestamp, SQL text, remote
+name, and success state. IDs are assigned by the history store.
 
 ### List history
 
@@ -265,16 +298,16 @@ Executed queries are recorded with an ID, timestamp, SQL text, and remote name.
 mid history list
 ```
 
-### Display the latest entry
+### Display the latest entry for the active remote
 
 ```sh
 mid history last
 ```
 
-History is currently stored in the operating system's temporary directory as:
+History is currently stored under the operating system's temporary directory as:
 
 ```text
-.midhistory.toml
+mid/.midhistory.toml
 ```
 
 It should not be treated as permanent storage.
