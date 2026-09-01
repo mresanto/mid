@@ -17,6 +17,7 @@ use crate::{
         },
     },
 };
+use indicatif::ProgressBar;
 use sqlx::types::chrono::Utc;
 
 pub async fn handle_query_command(
@@ -97,6 +98,11 @@ async fn execute_query_on_database(
     history_type: HistoryRequestType,
 ) -> Result<(Vec<HashMap<String, DbValue>>, Duration, MidConfigFile), DatabaseError> {
     let start = Instant::now();
+
+    let pb = ProgressBar::new_spinner();
+    pb.set_message("Executing query...");
+    pb.enable_steady_tick(Duration::from_millis(80));
+
     let file_path = globals::get_global_config_file_path();
     let config = manage::read_config(file_path)?;
 
@@ -124,10 +130,11 @@ async fn execute_query_on_database(
 
     if res.is_err() {
         eprintln!("Failed to execute query: {res:?}");
+        pb.finish_and_clear();
         return Err(DatabaseError::FailedToExecuteQuery());
     }
 
     let response = res.unwrap();
-
+    pb.finish_and_clear();
     Ok((response, duration, config))
 }
