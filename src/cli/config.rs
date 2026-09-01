@@ -3,7 +3,7 @@ use clap::Subcommand;
 use clap_complete::ArgValueCompleter;
 use clap_complete::Shell;
 
-use crate::core::config::completer::complete_remotes;
+use crate::core::config::completer::{complete_remotes, complete_tables};
 use crate::core::query::QueryOutputFormat;
 
 #[derive(Parser)]
@@ -30,10 +30,15 @@ pub enum MainCommands {
         command: Option<RemoteCommands>,
     },
 
+    Switch {
+        #[arg(add = ArgValueCompleter::new(complete_remotes))]
+        name: String,
+    },
+
     Status {},
 
     List {
-        #[arg(short, long)]
+        #[arg(short, long, add = ArgValueCompleter::new(complete_tables))]
         table_name: Option<String>,
         #[arg(long, value_enum, default_value = "table")]
         output_format: QueryOutputFormat,

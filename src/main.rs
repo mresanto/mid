@@ -47,6 +47,7 @@ async fn main() {
             Some(RemoteCommands::Switch { name }) => remote_handler::switch(name),
             None => {}
         },
+        MainCommands::Switch { name } => remote_handler::switch(name),
         MainCommands::List {
             output_format,
             table_name,
