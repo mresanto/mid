@@ -40,10 +40,12 @@ impl KeybindEvents {
             KeyCode::Char('q') => Some(Self::Quit),
             KeyCode::Char('u') => Some(Self::UpdateSelection),
             KeyCode::Char('e') => Some(Self::EditQuery),
-            KeyCode::Enter if input.modifiers.contains(KeyModifiers::SHIFT) => {
+            KeyCode::Enter | KeyCode::Char(' ')
+                if input.modifiers.contains(KeyModifiers::SHIFT) =>
+            {
                 Some(Self::OpenValueInSelectMode)
             }
-            KeyCode::Enter => match command {
+            KeyCode::Enter | KeyCode::Char(' ') => match command {
                 TableCommand::ShowTables => Some(Self::TableSearch),
                 TableCommand::ShowValue => Some(Self::OpenValue),
             },

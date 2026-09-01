@@ -65,7 +65,8 @@ pub enum DbValue {
 }
 
 pub trait DatabaseHandler {
-    async fn execute(&self, query: &str) -> Result<Vec<HashMap<String, DbValue>>, Error>;
+    async fn execute_select(&self, query: &str) -> Result<Vec<HashMap<String, DbValue>>, Error>;
+    async fn execute_dml(&self, query: &str) -> Result<(), Error>;
     fn export(&self, table_name: &str, items: Vec<HashMap<String, DbValue>>) -> String;
     fn list_tables(&self) -> String;
     fn select(&self, table_name: &str) -> String;

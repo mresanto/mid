@@ -5,10 +5,18 @@ use crate::core::databases::adapters::database_type::{
 };
 
 impl DatabaseHandler for DatabaseType {
-    async fn execute(&self, query: &str) -> Result<Vec<HashMap<String, DbValue>>, Error> {
+    async fn execute_select(&self, query: &str) -> Result<Vec<HashMap<String, DbValue>>, Error> {
         match self {
-            DatabaseType::Postgres(handler) => handler.execute(query).await,
-            DatabaseType::MySQL(handler) => handler.execute(query).await,
+            DatabaseType::Postgres(handler) => handler.execute_select(query).await,
+            DatabaseType::MySQL(handler) => handler.execute_select(query).await,
+            DatabaseType::SQLite() => todo!(),
+        }
+    }
+
+    async fn execute_dml(&self, query: &str) -> Result<(), Error> {
+        match self {
+            DatabaseType::Postgres(handler) => handler.execute_dml(query).await,
+            DatabaseType::MySQL(handler) => handler.execute_dml(query).await,
             DatabaseType::SQLite() => todo!(),
         }
     }

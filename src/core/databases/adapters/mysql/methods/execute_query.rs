@@ -103,3 +103,17 @@ pub async fn execute_mysql_query(
 
     return Ok(parsed_rows);
 }
+
+/// Execute one or more data-modification statements without preparing them.
+pub async fn execute_mysql_dml(config: &DatabaseConfig, query: String) -> Result<(), Error> {
+    let pool = MySqlPoolOptions::new()
+        .max_connections(5)
+        .connect(&config.connection_string)
+        .await?;
+
+    let result = sqlx::raw_sql(AssertSqlSafe(query)).execute(&pool).await;
+    pool.close().await;
+    result?;
+
+    Ok(())
+}

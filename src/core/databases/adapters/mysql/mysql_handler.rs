@@ -6,8 +6,10 @@ use crate::core::{
 };
 
 use super::methods::{
-    execute_query::execute_mysql_query, export_sql::generate_mysql_export,
-    list_table::list_tables_mysql, select_table::select_table_mysql,
+    execute_query::{execute_mysql_dml, execute_mysql_query},
+    export_sql::generate_mysql_export,
+    list_table::list_tables_mysql,
+    select_table::select_table_mysql,
     update_table::update_table_mysql,
 };
 
@@ -22,8 +24,12 @@ impl MySqlHandler {
 }
 
 impl DatabaseHandler for MySqlHandler {
-    async fn execute(&self, query: &str) -> Result<Vec<HashMap<String, DbValue>>, Error> {
+    async fn execute_select(&self, query: &str) -> Result<Vec<HashMap<String, DbValue>>, Error> {
         execute_mysql_query(&self.config, query.to_owned()).await
+    }
+
+    async fn execute_dml(&self, query: &str) -> Result<(), Error> {
+        execute_mysql_dml(&self.config, query.to_owned()).await
     }
 
     fn export(&self, table_name: &str, items: Vec<HashMap<String, DbValue>>) -> String {

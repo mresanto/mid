@@ -112,7 +112,10 @@ async fn execute_query_on_database(
     let active_database_name = active_database.name.clone();
 
     let database = config.get_database_type()?;
-    let res = database.execute(&query).await;
+    let res = match &history_type {
+        HistoryRequestType::DQL => database.execute_select(&query).await,
+        HistoryRequestType::DML => database.execute_dml(&query).await.map(|()| Vec::new()),
+    };
     let duration = start.elapsed();
 
     let history_file_path = globals::get_global_history_file_path();

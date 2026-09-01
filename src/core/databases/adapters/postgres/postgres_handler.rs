@@ -6,8 +6,10 @@ use crate::core::{
 };
 
 use super::methods::{
-    execute_query::execute_postgres_query, export_sql::generate_postgres_export,
-    list_table::list_tables_postgres, select_table::select_table_postgres,
+    execute_query::{execute_postgres_dml, execute_postgres_query},
+    export_sql::generate_postgres_export,
+    list_table::list_tables_postgres,
+    select_table::select_table_postgres,
     update_table::update_table_postgres,
 };
 
@@ -22,8 +24,12 @@ impl PostgresHandler {
 }
 
 impl DatabaseHandler for PostgresHandler {
-    async fn execute(&self, query: &str) -> Result<Vec<HashMap<String, DbValue>>, Error> {
+    async fn execute_select(&self, query: &str) -> Result<Vec<HashMap<String, DbValue>>, Error> {
         execute_postgres_query(&self.config, query.to_owned()).await
+    }
+
+    async fn execute_dml(&self, query: &str) -> Result<(), Error> {
+        execute_postgres_dml(&self.config, query.to_owned()).await
     }
 
     fn export(&self, table_name: &str, items: Vec<HashMap<String, DbValue>>) -> String {

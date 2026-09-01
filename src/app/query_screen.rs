@@ -367,8 +367,10 @@ impl QueryScreen {
         let Some(value) = selected_row.get(&column) else {
             return;
         };
-        let id_column = "Id";
-        let Some(id) = selected_row.get(id_column) else {
+        let Some((id_column, id)) = ["Id", "id"]
+            .into_iter()
+            .find_map(|column| selected_row.get(column).map(|value| (column, value)))
+        else {
             panic!("No id column found in selected row");
         };
         let Some(table) = Self::table_from_query(&self.query) else {
@@ -378,7 +380,7 @@ impl QueryScreen {
         let file_path = globals::get_global_config_file_path();
         let config = manage::read_config(file_path).unwrap();
         let database = config.get_database_type().unwrap();
-        let update_query = database.update(&table, &id_column, id, &[(&column, value)]);
+        let update_query = database.update(&table, id_column, id, &[(&column, value)]);
         self.event = Some(TableEvent::UpdateValue(format!(
             "-- Save and close to apply this update.\n\
             -- Delete all file to cancel.\n\n\
@@ -411,14 +413,17 @@ impl QueryScreen {
         let file_path = globals::get_global_config_file_path();
         let config = manage::read_config(file_path).unwrap();
         let database = config.get_database_type().unwrap();
-        let id_column = "Id";
+
         let mut queries = Vec::new();
 
         for (row_index, mut columns) in selected_by_row {
             let Some(row) = self.items.get(row_index) else {
                 continue;
             };
-            let Some(id) = row.get(id_column) else {
+            let Some((id_column, id)) = ["Id", "id"]
+                .into_iter()
+                .find_map(|column| row.get(column).map(|value| (column, value)))
+            else {
                 continue;
             };
             columns.sort_unstable();
