@@ -61,7 +61,7 @@ cargo run -- --help
 
 ## Shell completion
 
-Generate and install Fish completions in Fish's user completion directory:
+Generate and install dynamic Fish completions in Fish's user completion directory:
 
 ```sh
 mid generator --shell fish > ~/.config/fish/completions/mid.fish

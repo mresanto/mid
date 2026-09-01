@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::core::databases::adapters::database_type::{DatabaseType, Error};
+use crate::core::databases::adapters::{
+    database_type::{DatabaseType, Error},
+    mysql::mysql_handler::MySqlHandler,
+    postgres::postgres_handler::PostgresHandler,
+};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct MidConfigFile {
@@ -12,6 +16,25 @@ pub struct MidConfigFile {
 pub struct DatabaseConfig {
     pub name: String,
     pub connection_string: String,
+}
+
+impl DatabaseConfig {
+    pub fn get_database_type(&self) -> Result<DatabaseType, Error> {
+        let database_type = self
+            .connection_string
+            .split(':')
+            .next()
+            .ok_or(Error::DatabaseTypeNotFound)?;
+
+        match database_type {
+            "postgres" | "postgresql" => {
+                Ok(DatabaseType::Postgres(PostgresHandler::new(self.clone())))
+            }
+            "mysql" => Ok(DatabaseType::MySQL(MySqlHandler::new(self.clone()))),
+            "sqlite" => Ok(DatabaseType::SQLite()),
+            _ => Err(Error::DatabaseTypeNotFound),
+        }
+    }
 }
 
 impl Default for MidConfigFile {

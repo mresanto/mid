@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt};
 
 use sqlx::types::chrono;
 use thiserror::Error;
@@ -17,6 +17,18 @@ pub enum DatabaseType {
 
     /// The SQLite database type.
     SQLite(),
+}
+
+impl fmt::Display for DatabaseType {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            Self::Postgres(_) => "PostgreSQL",
+            Self::MySQL(_) => "MySQL",
+            Self::SQLite() => "SQLite",
+        };
+
+        formatter.write_str(name)
+    }
 }
 
 #[derive(Error, Debug)]

@@ -1,6 +1,7 @@
+use clap::Command;
 use clap::CommandFactory;
 use clap::Parser;
-use clap_complete::CompleteEnv;
+use clap_complete::{CompleteEnv, Shell};
 
 use crate::cli::commands::history_handler;
 use crate::cli::commands::list_handler;
@@ -17,9 +18,20 @@ pub mod app;
 mod cli;
 mod core;
 
+fn completion_command() -> Command {
+    disable_completion_help(Cli::command())
+}
+
+fn disable_completion_help(command: Command) -> Command {
+    command
+        .disable_help_flag(true)
+        .disable_help_subcommand(true)
+        .mut_subcommands(disable_completion_help)
+}
+
 #[tokio::main]
 async fn main() {
-    CompleteEnv::with_factory(Cli::command).complete();
+    CompleteEnv::with_factory(completion_command).complete();
 
     let cli = Cli::parse();
 
@@ -63,11 +75,23 @@ async fn main() {
         },
         MainCommands::Generator { shell } => {
             eprintln!("Generating completion file for {shell}...");
-            let mut cmd = Cli::command()
-                .disable_help_flag(true)
-                .disable_help_subcommand(true);
-            clap_complete::generate(*shell, &mut cmd, "mid", &mut std::io::stdout());
-            eprintln!("Done!");
+            generate_dynamic_completion(*shell);
         }
+    }
+}
+
+fn generate_dynamic_completion(shell: Shell) {
+    unsafe {
+        std::env::set_var("COMPLETE", shell.to_string());
+    }
+
+    let result = CompleteEnv::with_factory(completion_command)
+        .completer("mid")
+        .try_complete(["mid"], std::env::current_dir().ok().as_deref());
+
+    match result {
+        Ok(true) => eprintln!("Done!"),
+        Ok(false) => eprintln!("Failed to activate dynamic completion generation"),
+        Err(error) => eprintln!("Failed to generate completion file: {error}"),
     }
 }
