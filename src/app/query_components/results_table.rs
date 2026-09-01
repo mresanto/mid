@@ -9,7 +9,7 @@ use ratatui::{
 
 use crate::core::databases::adapters::database_type::DbValue;
 
-use super::format_db_value;
+use super::format_db_value_preview;
 
 const COLUMN_WIDTH: u16 = 20;
 const COLUMN_SPACING: u16 = 1;
@@ -68,12 +68,7 @@ impl ResultsTableData {
                     .map(|header| {
                         row.get(header).map_or_else(
                             || "null".into(),
-                            |value| {
-                                format_db_value(value)
-                                    .chars()
-                                    .take(MAX_CELL_CHARACTERS)
-                                    .collect()
-                            },
+                            |value| format_db_value_preview(value, MAX_CELL_CHARACTERS),
                         )
                     })
                     .collect()

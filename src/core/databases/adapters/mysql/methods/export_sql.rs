@@ -20,7 +20,7 @@ pub fn generate_mysql_export(table_name: &str, items: Vec<HashMap<String, DbValu
                 "'{}'",
                 format!("{{{}}}", values.join(",")).replace('\'', "''")
             ),
-            DbValue::Json(value) => format!("'{}'", value.to_string().replace('\'', "''")),
+            DbValue::Json(value) => format!("'{}'", value.replace('\'', "''")),
             DbValue::Numeric(value) => value.clone(),
             DbValue::Integer(value) => value.to_string(),
             DbValue::Float(value) if value.is_finite() => value.to_string(),

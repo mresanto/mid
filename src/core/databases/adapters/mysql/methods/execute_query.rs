@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use sqlx::types::chrono;
-use sqlx::{AssertSqlSafe, Column, Row, TypeInfo, ValueRef, mysql::MySqlPoolOptions};
+use sqlx::{
+    AssertSqlSafe, Column, Decode, MySql, Row, TypeInfo, ValueRef, mysql::MySqlPoolOptions,
+};
 
 use crate::core::config::types::DatabaseConfig;
 use crate::core::databases::adapters::database_type::{DbValue, Error};
@@ -27,7 +29,7 @@ pub async fn execute_mysql_query(
 
     let mut parsed_rows = Vec::new();
 
-    for row in &rows {
+    for row in rows {
         let mut row_map = HashMap::new();
 
         for column in row.columns() {
@@ -46,8 +48,7 @@ pub async fn execute_mysql_query(
                             .try_get::<chrono::DateTime<chrono::Utc>, _>(column_name)
                             .map(DbValue::DateTime)
                             .unwrap_or(DbValue::Null),
-                        "JSON" => row
-                            .try_get::<serde_json::Value, _>(column_name)
+                        "JSON" => <String as Decode<'_, MySql>>::decode(value_ref)
                             .map(DbValue::Json)
                             .unwrap_or(DbValue::Null),
                         "DECIMAL" | "NEWDECIMAL" => row

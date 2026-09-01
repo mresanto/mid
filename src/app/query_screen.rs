@@ -24,6 +24,7 @@ use ratatui::{
 
 use super::query_components::{
     FilterPopup, Footer, GotoPopup, ResultsTable, ResultsTableData, format_db_value,
+    format_db_value_preview,
 };
 
 use super::keybinds_events::KeybindEvents;
@@ -76,7 +77,6 @@ enum SortMode {
 #[derive(Default)]
 pub struct QueryScreen {
     items: Vec<HashMap<String, DbValue>>,
-    original_items: Vec<HashMap<String, DbValue>>,
     visible_indices: Vec<usize>,
     table_data: ResultsTableData,
     command: TableCommand,
@@ -107,7 +107,6 @@ impl QueryScreen {
         let visible_indices = (0..items.len()).collect();
 
         Self {
-            original_items: items.clone(),
             items,
             visible_indices,
             table_data,
@@ -125,10 +124,10 @@ impl QueryScreen {
         query: String,
         duration: Duration,
     ) {
-        self.visible_indices = (0..items.len()).collect();
-        self.table_data = ResultsTableData::new_filtered(&items, &self.visible_indices);
-        self.original_items = items.clone();
+        self.table_data = ResultsTableData::default();
         self.items = items;
+        self.visible_indices = (0..self.items.len()).collect();
+        self.table_data = ResultsTableData::new_filtered(&self.items, &self.visible_indices);
         self.query = query;
         self.duration = duration;
         self.exit = false;
@@ -266,18 +265,23 @@ impl QueryScreen {
             };
         }
 
-        self.items = self.original_items.clone();
+        self.visible_indices = (0..self.items.len()).collect();
         match self.sort_mode {
-            Some(SortMode::Asc) => self
-                .items
-                .sort_by(|a, b| compare_db_values(a.get(&column), b.get(&column))),
-            Some(SortMode::Desc) => self
-                .items
-                .sort_by(|a, b| compare_db_values(b.get(&column), a.get(&column))),
+            Some(SortMode::Asc) => self.visible_indices.sort_by(|left, right| {
+                compare_db_values(
+                    self.items[*left].get(&column),
+                    self.items[*right].get(&column),
+                )
+            }),
+            Some(SortMode::Desc) => self.visible_indices.sort_by(|left, right| {
+                compare_db_values(
+                    self.items[*right].get(&column),
+                    self.items[*left].get(&column),
+                )
+            }),
             None => {}
         }
-        self.visible_indices = (0..self.items.len()).collect();
-        self.table_data = ResultsTableData::new(&self.items);
+        self.table_data = ResultsTableData::new_filtered(&self.items, &self.visible_indices);
         self.select_values.clear();
         self.copied_cell = None;
     }
@@ -607,7 +611,25 @@ impl QueryScreen {
 
         Some(
             row.get(&header)
-                .map(format_db_value)
+                .map(|value| match value {
+                    DbValue::Json(json) => serde_json::from_str::<serde_json::Value>(json)
+                        .and_then(|value| serde_json::to_string_pretty(&value))
+                        .unwrap_or_else(|_| json.clone()),
+                    value => format_db_value(value),
+                })
+                .unwrap_or_else(|| "null".to_string()),
+        )
+    }
+
+    fn selected_value_preview(&self, max_characters: usize) -> Option<String> {
+        let row = self
+            .selected_item_index()
+            .and_then(|selected| self.items.get(selected))?;
+        let header = self.selected_column_name()?;
+
+        Some(
+            row.get(&header)
+                .map(|value| format_db_value_preview(value, max_characters))
                 .unwrap_or_else(|| "null".to_string()),
         )
     }
@@ -683,10 +705,20 @@ fn compare_db_values(left: Option<&DbValue>, right: Option<&DbValue>) -> Orderin
                 _ => left.cmp(right),
             }
         }
-        (Some(DbValue::Json(left)), Some(DbValue::Json(right))) => {
-            left.to_string().cmp(&right.to_string())
-        }
-        (Some(left), Some(right)) => format_db_value(left).cmp(&format_db_value(right)),
+        (Some(DbValue::Json(left)), Some(DbValue::Json(right))) => left.cmp(right),
+        (Some(left), Some(right)) => db_value_rank(left).cmp(&db_value_rank(right)),
+    }
+}
+
+fn db_value_rank(value: &DbValue) -> u8 {
+    match value {
+        DbValue::Null => 0,
+        DbValue::Boolean(_) => 1,
+        DbValue::Integer(_) | DbValue::Float(_) | DbValue::Numeric(_) => 2,
+        DbValue::Text(_) => 3,
+        DbValue::TextArray(_) => 4,
+        DbValue::Json(_) => 5,
+        DbValue::DateTime(_) => 6,
     }
 }
 
@@ -703,7 +735,9 @@ impl Widget for &mut QueryScreen {
 
         Paragraph::new(Line::from(vec![
             "  Value: ".dark_gray(),
-            self.selected_value().unwrap_or_default().yellow(),
+            self.selected_value_preview(200)
+                .unwrap_or_default()
+                .yellow(),
         ]))
         .render(header_area, buf);
 

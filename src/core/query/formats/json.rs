@@ -27,7 +27,8 @@ fn format_to_json_elements(items: Vec<HashMap<String, DbValue>>) -> Vec<serde_js
                             .map(|value| serde_json::Value::String(value.clone()))
                             .collect(),
                     ),
-                    DbValue::Json(value) => value.clone(),
+                    DbValue::Json(value) => serde_json::from_str(value)
+                        .unwrap_or_else(|_| serde_json::Value::String(value.clone())),
                     DbValue::Numeric(value) => serde_json::Value::String(value.clone()),
                     DbValue::Integer(n) => serde_json::Value::Number((*n).into()),
                     DbValue::Float(f) => serde_json::Number::from_f64(*f)

@@ -8,4 +8,4 @@ pub(crate) use filter_popup::FilterPopup;
 pub(crate) use footer::Footer;
 pub(crate) use goto_popup::GotoPopup;
 pub(crate) use results_table::{ResultsTable, ResultsTableData};
-pub(crate) use value::format_db_value;
+pub(crate) use value::{format_db_value, format_db_value_preview};

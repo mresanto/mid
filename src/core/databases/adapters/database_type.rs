@@ -56,7 +56,7 @@ pub enum DbValue {
     Null,
     Text(String),
     TextArray(Vec<String>),
-    Json(serde_json::Value),
+    Json(String),
     Numeric(String),
     Integer(i64),
     Float(f64),

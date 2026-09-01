@@ -30,7 +30,7 @@ pub async fn execute_postgres_query(
 
     let mut parsed_rows = Vec::new();
 
-    for row in &rows {
+    for row in rows {
         let mut row_map = HashMap::new();
 
         for column in row.columns() {
