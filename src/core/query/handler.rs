@@ -96,7 +96,6 @@ async fn execute_query_on_database(
     query: String,
     history_type: HistoryRequestType,
 ) -> Result<(Vec<HashMap<String, DbValue>>, Duration, MidConfigFile), DatabaseError> {
-    println!("history_type: {:?}", history_type);
     let start = Instant::now();
     let file_path = globals::get_global_config_file_path();
     let config = manage::read_config(file_path)?;
