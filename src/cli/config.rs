@@ -1,7 +1,9 @@
 use clap::Parser;
 use clap::Subcommand;
+use clap_complete::ArgValueCompleter;
 use clap_complete::Shell;
 
+use crate::core::config::completer::complete_remotes;
 use crate::core::query::QueryOutputFormat;
 
 #[derive(Parser)]
@@ -91,11 +93,11 @@ pub enum RemoteCommands {
         database_type: Option<String>,
     },
     Remove {
-        #[arg()]
+        #[arg(add = ArgValueCompleter::new(complete_remotes))]
         name: String,
     },
     Switch {
-        #[arg()]
+        #[arg(add = ArgValueCompleter::new(complete_remotes))]
         name: String,
     },
 }

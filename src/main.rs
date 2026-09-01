@@ -1,5 +1,6 @@
 use clap::CommandFactory;
 use clap::Parser;
+use clap_complete::CompleteEnv;
 
 use crate::cli::commands::history_handler;
 use crate::cli::commands::list_handler;
@@ -18,6 +19,8 @@ mod core;
 
 #[tokio::main]
 async fn main() {
+    CompleteEnv::with_factory(Cli::command).complete();
+
     let cli = Cli::parse();
 
     match &cli.command {
