@@ -1,4 +1,4 @@
-use crate::core::{self, query::QueryOutputFormat};
+use crate::core::{self, history::HistoryRequestType, query::QueryOutputFormat};
 
 pub async fn last(output_format: &QueryOutputFormat) {
     let file_path_history = core::globals::get_global_history_file_path();
@@ -20,12 +20,10 @@ pub async fn last(output_format: &QueryOutputFormat) {
     };
 
     match last_request {
-        Ok(history) => match history
-            .requests
-            .iter()
-            .rev()
-            .find(|request| request.database == active_database.name)
-        {
+        Ok(history) => match history.requests.iter().rev().find(|request| {
+            request.database == active_database.name
+                && request.history_type == HistoryRequestType::DQL
+        }) {
             Some(last) => {
                 let res = core::query::handler::handle_query_command(
                     last.query.clone(),

@@ -15,16 +15,27 @@ pub struct HistoryRequest {
     pub database: String,
     pub created_at: String,
     pub is_success: bool,
+    pub duration: u64,
+    pub history_type: HistoryRequestType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub enum HistoryRequestType {
+    DQL,
+    DML,
 }
 
 impl Default for HistoryRequest {
     fn default() -> Self {
         Self {
             id: 0,
+
             query: String::new(),
             database: String::new(),
             created_at: String::new(),
             is_success: false,
+            duration: 0,
+            history_type: HistoryRequestType::DQL,
         }
     }
 }
@@ -89,6 +100,8 @@ pub fn add_request(
     database: String,
     created_at: String,
     is_success: bool,
+    duration: u64,
+    history_type: HistoryRequestType,
 ) -> Result<(), Error> {
     let mut history = read_history(file_path.clone())?;
     let id = history
@@ -105,6 +118,8 @@ pub fn add_request(
         database,
         created_at,
         is_success,
+        duration,
+        history_type,
     });
     save_history(file_path, history)
 }

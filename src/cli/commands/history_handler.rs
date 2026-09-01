@@ -11,6 +11,9 @@ pub fn list() {
                 println!("query: {}", request.query);
                 println!("created_at: {}", request.created_at);
                 println!("database: {}", request.database);
+                println!("history_type: {:?}", request.history_type);
+                println!("is_success: {}", request.is_success);
+                println!("duration: {}", request.duration);
                 println!("");
             }
         }

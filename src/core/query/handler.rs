@@ -9,7 +9,8 @@ use crate::{
         config::{manage, types::MidConfigFile},
         databases::adapters::database_type::{DatabaseHandler, DbValue, Error as DatabaseError},
         editor::open_editor::open_editor_recover_text,
-        globals, history,
+        globals,
+        history::{self, HistoryRequestType},
         query::{
             Error, QueryOutputFormat, TableCommand, TableEvent,
             formats::json::render_output_as_json,
@@ -38,7 +39,9 @@ async fn execute(
             let mut app = App::new(Vec::new(), command, current_query.clone());
 
             loop {
-                let (items, duration, _) = execute_query_on_database(current_query.clone()).await?;
+                let (items, duration, _) =
+                    execute_query_on_database(current_query.clone(), HistoryRequestType::DQL)
+                        .await?;
                 app.update_app_results(items, current_query.clone(), duration);
 
                 let event =
@@ -56,7 +59,8 @@ async fn execute(
                             continue;
                         };
                         if !update_query.trim().is_empty() {
-                            execute_query_on_database(update_query).await?;
+                            execute_query_on_database(update_query, HistoryRequestType::DML)
+                                .await?;
                         }
                     }
                     Some(TableEvent::OpenSelectedRow(text)) => {
@@ -69,13 +73,15 @@ async fn execute(
             }
         }
         QueryOutputFormat::Json => {
-            let (items, _, _) = execute_query_on_database(query.clone()).await?;
+            let (items, _, _) =
+                execute_query_on_database(query.clone(), HistoryRequestType::DQL).await?;
 
             render_output_as_json(items);
             Ok(None)
         }
         QueryOutputFormat::Sql => {
-            let (items, _, config) = execute_query_on_database(query.clone()).await?;
+            let (items, _, config) =
+                execute_query_on_database(query.clone(), HistoryRequestType::DQL).await?;
             let database = config.get_database_type()?;
 
             let table_name = database.table_name(&query);
@@ -88,7 +94,9 @@ async fn execute(
 
 async fn execute_query_on_database(
     query: String,
+    history_type: HistoryRequestType,
 ) -> Result<(Vec<HashMap<String, DbValue>>, Duration, MidConfigFile), DatabaseError> {
+    println!("history_type: {:?}", history_type);
     let start = Instant::now();
     let file_path = globals::get_global_config_file_path();
     let config = manage::read_config(file_path)?;
@@ -100,6 +108,7 @@ async fn execute_query_on_database(
 
     let database = config.get_database_type()?;
     let res = database.execute(&query).await;
+    let duration = start.elapsed();
 
     let history_file_path = globals::get_global_history_file_path();
     if let Err(error) = history::add_request(
@@ -108,6 +117,8 @@ async fn execute_query_on_database(
         active_database_name,
         Utc::now().to_rfc3339(),
         res.is_ok(),
+        duration.as_millis() as u64,
+        history_type,
     ) {
         eprintln!("Failed to save query history: {error}");
     }
@@ -119,5 +130,5 @@ async fn execute_query_on_database(
 
     let response = res.unwrap();
 
-    Ok((response, start.elapsed(), config))
+    Ok((response, duration, config))
 }
