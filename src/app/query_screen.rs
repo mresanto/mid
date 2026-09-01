@@ -17,7 +17,9 @@ use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
-    widgets::{StatefulWidget, TableState, Widget},
+    style::Stylize,
+    text::Line,
+    widgets::{Paragraph, StatefulWidget, TableState, Widget},
 };
 
 use super::query_components::{
@@ -692,8 +694,18 @@ impl Widget for &mut QueryScreen {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let copied_cell = self.copied_cell();
 
-        let [table_area, footer_area] =
-            Layout::vertical([Constraint::Fill(1), Constraint::Length(Footer::HEIGHT)]).areas(area);
+        let [header_area, table_area, footer_area] = Layout::vertical([
+            Constraint::Length(2),
+            Constraint::Fill(1),
+            Constraint::Length(Footer::HEIGHT),
+        ])
+        .areas(area);
+
+        Paragraph::new(Line::from(vec![
+            "  Value: ".dark_gray(),
+            self.selected_value().unwrap_or_default().yellow(),
+        ]))
+        .render(header_area, buf);
 
         StatefulWidget::render(
             ResultsTable::new(
