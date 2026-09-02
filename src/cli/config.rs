@@ -105,4 +105,5 @@ pub enum RemoteCommands {
         #[arg(add = ArgValueCompleter::new(complete_remotes))]
         name: String,
     },
+    Edit {},
 }

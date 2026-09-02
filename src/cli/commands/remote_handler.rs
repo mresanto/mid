@@ -2,10 +2,17 @@ use crate::{
     app::remote_add_screen::RemoteAddScreen,
     core::{
         config::{manage, types::DatabaseConfig},
-        editor::open_editor::open_editor_recover_text,
+        editor::open_editor::{open_editor_in_file, open_editor_recover_text},
         globals::get_global_config_file_path,
     },
 };
+
+pub fn edit() {
+    let file_path = get_global_config_file_path();
+    if let Err(error) = open_editor_in_file(std::path::Path::new(&file_path)) {
+        eprintln!("Failed to open remote config: {error}");
+    }
+}
 
 pub fn list() {
     let file_path = get_global_config_file_path();

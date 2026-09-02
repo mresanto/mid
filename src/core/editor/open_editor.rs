@@ -2,7 +2,7 @@ use std::{
     env,
     fs::{self, OpenOptions},
     io::{self, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::Command,
     sync::atomic::{AtomicU64, Ordering},
 };
@@ -39,6 +39,34 @@ pub fn open_editor_recover_text(query: &str) -> color_eyre::Result<Option<String
 
     let _ = fs::remove_file(&path);
     Ok(result?)
+}
+
+pub fn open_editor_in_file(path: &Path) -> color_eyre::Result<()> {
+    let editor = get_editor()?;
+    open_editor_with_args(&editor, path)
+}
+
+fn get_editor() -> color_eyre::Result<String> {
+    env::var("EDITOR")
+        .ok()
+        .filter(|editor| !editor.trim().is_empty())
+        .ok_or_else(|| Error::EditorNotConfigured().into())
+}
+
+fn open_editor_with_args(editor: &str, path: &Path) -> color_eyre::Result<()> {
+    let mut editor_parts = editor.split_whitespace();
+    let program = editor_parts.next().ok_or(Error::EditorNotConfigured())?;
+    let status = Command::new(program)
+        .args(editor_parts)
+        .arg(path)
+        .status()
+        .map_err(|_| Error::OpenEditor())?;
+
+    if !status.success() {
+        return Err(Error::OpenEditor().into());
+    }
+
+    Ok(())
 }
 
 fn create_query_temp_file() -> std::result::Result<(PathBuf, fs::File), Error> {
