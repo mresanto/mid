@@ -1,4 +1,6 @@
-use crate::core;
+use crate::core::{
+    self, editor::open_editor::open_editor_in_file, globals::get_global_history_file_path,
+};
 
 pub fn list() {
     let file_path = core::globals::get_global_history_file_path();
@@ -58,5 +60,12 @@ pub fn last() {
             _ => println!("No history found for active database"),
         },
         Err(e) => eprintln!("No history found: {e}"),
+    }
+}
+
+pub fn edit() {
+    let file_path = get_global_history_file_path();
+    if let Err(error) = open_editor_in_file(std::path::Path::new(&file_path)) {
+        eprintln!("Failed to open history file: {error}");
     }
 }

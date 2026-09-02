@@ -73,6 +73,7 @@ pub enum HistoryCommands {
     #[command(name = "last", visible_alias = "-", alias = "Last")]
     Last,
     List,
+    Edit,
 }
 
 #[derive(Subcommand)]
@@ -86,7 +87,7 @@ pub enum QueryCommands {
 
 #[derive(Subcommand)]
 pub enum RemoteCommands {
-    List {},
+    List,
     Add {
         #[arg()]
         connection_string: Option<String>,
@@ -105,5 +106,5 @@ pub enum RemoteCommands {
         #[arg(add = ArgValueCompleter::new(complete_remotes))]
         name: String,
     },
-    Edit {},
+    Edit,
 }

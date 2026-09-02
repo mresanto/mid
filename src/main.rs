@@ -73,6 +73,7 @@ async fn main() {
         MainCommands::History { command } => match command {
             Some(HistoryCommands::List {}) => history_handler::list(),
             Some(HistoryCommands::Last {}) => history_handler::last(),
+            Some(HistoryCommands::Edit {}) => history_handler::edit(),
             None => {}
         },
         MainCommands::Generator { shell } => {
