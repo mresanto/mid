@@ -43,16 +43,12 @@ pub fn complete_tables(current: &OsStr) -> Vec<CompletionCandidate> {
     };
 
     let query = database.list_tables();
-    let tables = if let Ok(handle) = tokio::runtime::Handle::try_current() {
-        handle.block_on(database.execute_select(&query))
-    } else {
-        let Ok(runtime) = tokio::runtime::Runtime::new() else {
-            return Vec::new();
-        };
-
-        runtime.block_on(database.execute_select(&query))
+    let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+        return Vec::new();
     };
-    let Ok(tables) = tables else {
+    let Ok(tables) =
+        tokio::task::block_in_place(|| runtime.block_on(database.execute_select(&query)))
+    else {
         return Vec::new();
     };
 
