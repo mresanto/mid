@@ -404,13 +404,7 @@ impl QueryScreen {
             return;
         }
 
-        let headers = self
-            .items
-            .iter()
-            .flat_map(|row| row.keys().cloned())
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
+        let headers = self.table_data.headers.iter().cloned().collect::<Vec<_>>();
         let mut selected_by_row = std::collections::BTreeMap::<usize, Vec<usize>>::new();
         for &(row, column) in &self.select_values {
             selected_by_row.entry(row).or_default().push(column);
@@ -488,7 +482,6 @@ impl QueryScreen {
         self.items
             .iter()
             .flat_map(|row| row.keys().cloned())
-            .collect::<BTreeSet<_>>()
             .into_iter()
             .nth(self.selected_column)
     }
@@ -639,13 +632,7 @@ impl QueryScreen {
             return None;
         }
 
-        let headers = self
-            .items
-            .iter()
-            .flat_map(|row| row.keys().cloned())
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
+        let headers = self.table_data.headers.iter().cloned().collect::<Vec<_>>();
         let mut selected_values = self.select_values.clone();
         selected_values.sort_unstable();
 
@@ -677,12 +664,7 @@ impl QueryScreen {
     }
 
     fn column_count(&self) -> usize {
-        self.items
-            .iter()
-            .flat_map(|row| row.keys())
-            .collect::<BTreeSet<_>>()
-            .len()
-            .max(1)
+        self.items.iter().flat_map(|row| row.keys()).count().max(1)
     }
 }
 

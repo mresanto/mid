@@ -17,10 +17,10 @@ const MAX_CELL_CHARACTERS: usize = 50;
 
 #[derive(Default)]
 pub(crate) struct ResultsTableData {
-    headers: Vec<String>,
-    rows: Vec<Vec<String>>,
-    source_indices: Vec<usize>,
-    item_count: usize,
+    pub headers: Vec<String>,
+    pub rows: Vec<Vec<String>>,
+    pub source_indices: Vec<usize>,
+    pub item_count: usize,
 }
 
 impl ResultsTableData {
@@ -37,8 +37,6 @@ impl ResultsTableData {
         let headers = items
             .iter()
             .flat_map(|row| row.keys().cloned())
-            .collect::<BTreeSet<_>>()
-            .into_iter()
             .collect::<Vec<_>>();
 
         if headers.is_empty() {
