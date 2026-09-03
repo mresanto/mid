@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    collections::{BTreeSet, HashMap},
+    collections::HashMap,
     io,
     time::{Duration, Instant},
 };
@@ -664,7 +664,7 @@ impl QueryScreen {
     }
 
     fn column_count(&self) -> usize {
-        self.items.iter().flat_map(|row| row.keys()).count().max(1)
+        self.table_data.headers.len().max(1)
     }
 }
 

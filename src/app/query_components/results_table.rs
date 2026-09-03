@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{HashMap, HashSet};
 
 use ratatui::{
     buffer::Buffer,
@@ -37,6 +37,8 @@ impl ResultsTableData {
         let headers = items
             .iter()
             .flat_map(|row| row.keys().cloned())
+            .collect::<HashSet<_>>()
+            .into_iter()
             .collect::<Vec<_>>();
 
         if headers.is_empty() {
