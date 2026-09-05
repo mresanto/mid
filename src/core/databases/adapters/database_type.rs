@@ -64,8 +64,25 @@ pub enum DbValue {
     DateTime(chrono::DateTime<chrono::Utc>),
 }
 
+/// Column names in SELECT order and rows with values at matching indices.
+#[derive(Debug, Clone, Default)]
+pub struct QueryResult {
+    pub headers: Vec<String>,
+    pub rows: Vec<Vec<DbValue>>,
+}
+
+impl QueryResult {
+    /// Compatibility for consumers that address values by unique column name.
+    pub fn into_maps(self) -> Vec<HashMap<String, DbValue>> {
+        self.rows
+            .into_iter()
+            .map(|row| self.headers.iter().cloned().zip(row).collect())
+            .collect()
+    }
+}
+
 pub trait DatabaseHandler {
-    async fn execute_select(&self, query: &str) -> Result<Vec<HashMap<String, DbValue>>, Error>;
+    async fn execute_select(&self, query: &str) -> Result<QueryResult, Error>;
     async fn execute_dml(&self, query: &str) -> Result<(), Error>;
     fn export(&self, table_name: &str, items: Vec<HashMap<String, DbValue>>) -> String;
     fn list_tables(&self) -> String;

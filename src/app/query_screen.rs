@@ -77,6 +77,7 @@ enum SortMode {
 #[derive(Default)]
 pub struct QueryScreen {
     items: Vec<HashMap<String, DbValue>>,
+    headers: Vec<String>,
     visible_indices: Vec<usize>,
     table_data: ResultsTableData,
     command: TableCommand,
@@ -120,14 +121,16 @@ impl QueryScreen {
 
     pub fn update_app_results(
         &mut self,
-        items: Vec<HashMap<String, DbValue>>,
+        result: crate::core::databases::adapters::database_type::QueryResult,
         query: String,
         duration: Duration,
     ) {
         self.table_data = ResultsTableData::default();
-        self.items = items;
+        self.headers = result.headers.clone();
+        self.items = result.into_maps();
         self.visible_indices = (0..self.items.len()).collect();
-        self.table_data = ResultsTableData::new_filtered(&self.items, &self.visible_indices);
+        self.table_data =
+            ResultsTableData::new_filtered(&self.items, &self.visible_indices, &self.headers);
         self.query = query;
         self.duration = duration;
         self.exit = false;
@@ -281,7 +284,8 @@ impl QueryScreen {
             }),
             None => {}
         }
-        self.table_data = ResultsTableData::new_filtered(&self.items, &self.visible_indices);
+        self.table_data =
+            ResultsTableData::new_filtered(&self.items, &self.visible_indices, &self.headers);
         self.select_values.clear();
         self.copied_cell = None;
     }
@@ -340,7 +344,8 @@ impl QueryScreen {
                     .then_some(index)
             })
             .collect();
-        self.table_data = ResultsTableData::new_filtered(&self.items, &self.visible_indices);
+        self.table_data =
+            ResultsTableData::new_filtered(&self.items, &self.visible_indices, &self.headers);
         self.table_state = TableState::default();
         if !self.visible_indices.is_empty() {
             self.table_state.select_first();

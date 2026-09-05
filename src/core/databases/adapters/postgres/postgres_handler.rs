@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::core::{
     config::types::DatabaseConfig,
-    databases::adapters::database_type::{DatabaseHandler, DbValue, Error},
+    databases::adapters::database_type::{DatabaseHandler, DbValue, Error, QueryResult},
 };
 
 use super::methods::{
@@ -24,7 +24,7 @@ impl PostgresHandler {
 }
 
 impl DatabaseHandler for PostgresHandler {
-    async fn execute_select(&self, query: &str) -> Result<Vec<HashMap<String, DbValue>>, Error> {
+    async fn execute_select(&self, query: &str) -> Result<QueryResult, Error> {
         execute_postgres_query(&self.config, query.to_owned()).await
     }
 

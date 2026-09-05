@@ -1,13 +1,12 @@
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use crate::{
     app::App,
     core::{
         config::{manage, types::MidConfigFile},
-        databases::adapters::database_type::{DatabaseHandler, DbValue, Error as DatabaseError},
+        databases::adapters::database_type::{
+            DatabaseHandler, Error as DatabaseError, QueryResult,
+        },
         editor::open_editor::open_editor_recover_text,
         globals,
         history::{self, HistoryRequestType},
@@ -77,7 +76,7 @@ async fn execute(
             let (items, _, _) =
                 execute_query_on_database(query.clone(), HistoryRequestType::DQL).await?;
 
-            render_output_as_json(items);
+            render_output_as_json(items.into_maps());
             Ok(None)
         }
         QueryOutputFormat::Sql => {
@@ -86,7 +85,7 @@ async fn execute(
             let database = config.get_database_type()?;
 
             let table_name = database.table_name(&query);
-            println!("{}", database.export(&table_name, items));
+            println!("{}", database.export(&table_name, items.into_maps()));
 
             Ok(None)
         }
@@ -96,7 +95,7 @@ async fn execute(
 async fn execute_query_on_database(
     query: String,
     history_type: HistoryRequestType,
-) -> Result<(Vec<HashMap<String, DbValue>>, Duration, MidConfigFile), DatabaseError> {
+) -> Result<(QueryResult, Duration, MidConfigFile), DatabaseError> {
     let start = Instant::now();
 
     let pb = ProgressBar::new_spinner();
@@ -114,7 +113,10 @@ async fn execute_query_on_database(
     let database = config.get_database_type()?;
     let res = match &history_type {
         HistoryRequestType::DQL => database.execute_select(&query).await,
-        HistoryRequestType::DML => database.execute_dml(&query).await.map(|()| Vec::new()),
+        HistoryRequestType::DML => database
+            .execute_dml(&query)
+            .await
+            .map(|()| QueryResult::default()),
     };
     let duration = start.elapsed();
 

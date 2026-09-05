@@ -30,16 +30,24 @@ impl ResultsTableData {
 
     pub(crate) fn new(items: &[HashMap<String, DbValue>]) -> Self {
         let indices = (0..items.len()).collect::<Vec<_>>();
-        Self::new_filtered(items, &indices)
+        Self::new_filtered(items, &indices, &[])
     }
 
-    pub(crate) fn new_filtered(items: &[HashMap<String, DbValue>], indices: &[usize]) -> Self {
-        let headers = items
-            .iter()
-            .flat_map(|row| row.keys().cloned())
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
+    pub(crate) fn new_filtered(
+        items: &[HashMap<String, DbValue>],
+        indices: &[usize],
+        ordered_headers: &[String],
+    ) -> Self {
+        let headers = if ordered_headers.is_empty() {
+            items
+                .iter()
+                .flat_map(|row| row.keys().cloned())
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>()
+        } else {
+            ordered_headers.to_vec()
+        };
 
         if headers.is_empty() {
             return Self {

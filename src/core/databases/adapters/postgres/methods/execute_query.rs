@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use sqlx::{
     AssertSqlSafe, Column, Row, TypeInfo, ValueRef,
     postgres::PgPoolOptions,
@@ -7,13 +5,13 @@ use sqlx::{
 };
 
 use crate::core::config::types::DatabaseConfig;
-use crate::core::databases::adapters::database_type::{DbValue, Error};
+use crate::core::databases::adapters::database_type::{DbValue, Error, QueryResult};
 
 /// Use this method to run an arbitrary query on the active database connection.
 pub async fn execute_postgres_query(
     config: &DatabaseConfig,
     query: String,
-) -> Result<Vec<HashMap<String, DbValue>>, Error> {
+) -> Result<QueryResult, Error> {
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(&config.connection_string)
@@ -28,61 +26,68 @@ pub async fn execute_postgres_query(
 
     pool.close().await;
 
+    let headers = rows
+        .first()
+        .map(|row| {
+            row.columns()
+                .iter()
+                .map(|column| column.name().to_owned())
+                .collect()
+        })
+        .unwrap_or_default();
     let mut parsed_rows = Vec::new();
 
     for row in rows {
-        let mut row_map = HashMap::new();
+        let mut values = Vec::new();
 
-        for column in row.columns() {
-            let column_name = column.name();
-
-            let db_value = match row.try_get_raw(column_name) {
+        for (index_column, column) in row.columns().iter().enumerate() {
+            let db_value = match row.try_get_raw(index_column) {
                 Ok(value_ref) if !value_ref.is_null() => {
                     let type_name = column.type_info().name();
                     match type_name {
                         "UUID" => row
-                            .try_get::<Uuid, _>(column_name)
+                            .try_get::<Uuid, _>(index_column)
                             .map(|u| DbValue::Text(u.to_string()))
                             .unwrap_or(DbValue::Null),
                         "TIMESTAMP" | "TIMESTAMPTZ" => row
-                            .try_get::<chrono::DateTime<chrono::Utc>, _>(column_name)
+                            .try_get::<chrono::DateTime<chrono::Utc>, _>(index_column)
                             .map(|dt| DbValue::DateTime(dt))
                             .unwrap_or(DbValue::Null),
                         "VARCHAR" | "TEXT" | "BPCHAR" | "NAME" => row
-                            .try_get::<String, _>(column_name)
+                            .try_get::<String, _>(index_column)
                             .map(DbValue::Text)
                             .unwrap_or(DbValue::Null),
                         "_TEXT" | "TEXT[]" => row
-                            .try_get::<Vec<String>, _>(column_name)
+                            .try_get::<Vec<String>, _>(index_column)
                             .map(DbValue::TextArray)
                             .unwrap_or(DbValue::Null),
                         "NUMERIC" => row
-                            .try_get::<String, _>(column_name)
+                            .try_get::<String, _>(index_column)
                             .map(DbValue::Numeric)
                             .unwrap_or(DbValue::Null),
                         "INT2" | "INT4" | "INTEGER" => row
-                            .try_get::<i32, _>(column_name)
+                            .try_get::<i32, _>(index_column)
                             .map(|n| DbValue::Integer(n as i64))
                             .unwrap_or(DbValue::Null),
                         "INT8" | "BIGINT" => row
-                            .try_get::<i64, _>(column_name)
+                            .try_get::<i64, _>(index_column)
                             .map(DbValue::Integer)
                             .unwrap_or(DbValue::Null),
                         "BOOL" | "BOOLEAN" => row
-                            .try_get::<bool, _>(column_name)
+                            .try_get::<bool, _>(index_column)
                             .map(DbValue::Boolean)
                             .unwrap_or(DbValue::Null),
                         "FLOAT4" | "REAL" => row
-                            .try_get::<f32, _>(column_name)
+                            .try_get::<f32, _>(index_column)
                             .map(|n| DbValue::Float(n as f64))
                             .unwrap_or(DbValue::Null),
                         "FLOAT8" | "DOUBLE PRECISION" => row
-                            .try_get::<f64, _>(column_name)
+                            .try_get::<f64, _>(index_column)
                             .map(DbValue::Float)
                             .unwrap_or(DbValue::Null),
                         // Safe fallback for complex types (Timestamps, UUIDs, JSON columns)
                         _ => row
-                            .try_get::<String, _>(column_name)
+                            .try_get::<String, _>(index_column)
                             .map(DbValue::Text)
                             .unwrap_or_else(|_| {
                                 DbValue::Text(format!("<unsupported: {}>", type_name))
@@ -92,13 +97,16 @@ pub async fn execute_postgres_query(
                 _ => DbValue::Null,
             };
 
-            row_map.insert(column_name.to_string(), db_value);
+            values.push(db_value);
         }
 
-        parsed_rows.push(row_map);
+        parsed_rows.push(values);
     }
 
-    return Ok(parsed_rows);
+    return Ok(QueryResult {
+        headers,
+        rows: parsed_rows,
+    });
 }
 
 /// Execute one or more data-modification statements without preparing them.

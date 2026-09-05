@@ -53,6 +53,7 @@ pub fn complete_tables(current: &OsStr) -> Vec<CompletionCandidate> {
     };
 
     tables
+        .into_maps()
         .into_iter()
         .filter_map(|mut table| match table.remove("table_name") {
             Some(DbValue::Text(table_name)) if table_name.starts_with(prefix.as_ref()) => {

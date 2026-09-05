@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
 use crate::core::databases::adapters::database_type::{
-    DatabaseHandler, DatabaseType, DbValue, Error,
+    DatabaseHandler, DatabaseType, DbValue, Error, QueryResult,
 };
 
 impl DatabaseHandler for DatabaseType {
-    async fn execute_select(&self, query: &str) -> Result<Vec<HashMap<String, DbValue>>, Error> {
+    async fn execute_select(&self, query: &str) -> Result<QueryResult, Error> {
         match self {
             DatabaseType::Postgres(handler) => handler.execute_select(query).await,
             DatabaseType::MySQL(handler) => handler.execute_select(query).await,
