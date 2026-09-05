@@ -1,5 +1,3 @@
-use std::collections::{HashMap, HashSet};
-
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
@@ -7,7 +5,7 @@ use ratatui::{
     widgets::{Row, StatefulWidget, Table, TableState},
 };
 
-use crate::core::databases::adapters::database_type::DbValue;
+use crate::core::databases::adapters::database_type::QueryResult;
 
 use super::format_db_value_preview;
 
@@ -28,23 +26,18 @@ impl ResultsTableData {
         self.item_count
     }
 
-    pub(crate) fn new(items: &[HashMap<String, DbValue>]) -> Self {
-        let indices = (0..items.len()).collect::<Vec<_>>();
+    pub(crate) fn new(items: &QueryResult) -> Self {
+        let indices = (0..items.rows.len()).collect::<Vec<_>>();
         Self::new_filtered(items, &indices, &[])
     }
 
     pub(crate) fn new_filtered(
-        items: &[HashMap<String, DbValue>],
+        items: &QueryResult,
         indices: &[usize],
         ordered_headers: &[String],
     ) -> Self {
         let headers = if ordered_headers.is_empty() {
-            items
-                .iter()
-                .flat_map(|row| row.keys().cloned())
-                .collect::<HashSet<_>>()
-                .into_iter()
-                .collect::<Vec<_>>()
+            items.headers.clone()
         } else {
             ordered_headers.to_vec()
         };
@@ -69,23 +62,17 @@ impl ResultsTableData {
 
         let rows = indices
             .iter()
-            .filter_map(|index| items.get(*index))
-            .map(|row| {
-                headers
+            .map(|index| {
+                items.rows[*index]
                     .iter()
-                    .map(|header| {
-                        row.get(header).map_or_else(
-                            || "null".into(),
-                            |value| format_db_value_preview(value, MAX_CELL_CHARACTERS),
-                        )
-                    })
-                    .collect()
+                    .map(|value| format_db_value_preview(value, MAX_CELL_CHARACTERS))
+                    .collect::<Vec<_>>()
             })
-            .collect();
+            .collect::<Vec<_>>();
 
         Self {
             headers,
-            rows,
+            rows: rows,
             source_indices: indices.to_vec(),
             item_count: indices.len(),
         }

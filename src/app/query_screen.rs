@@ -1,6 +1,5 @@
 use std::{
     cmp::Ordering,
-    collections::HashMap,
     io,
     time::{Duration, Instant},
 };
@@ -31,7 +30,7 @@ use super::keybinds_events::KeybindEvents;
 
 use crate::core::{
     config::manage,
-    databases::adapters::database_type::{DatabaseHandler, DbValue},
+    databases::adapters::database_type::{DatabaseHandler, DbValue, QueryResult},
     globals,
     query::{TableCommand, TableEvent},
 };
@@ -76,8 +75,7 @@ enum SortMode {
 
 #[derive(Default)]
 pub struct QueryScreen {
-    items: Vec<HashMap<String, DbValue>>,
-    headers: Vec<String>,
+    items: QueryResult,
     visible_indices: Vec<usize>,
     table_data: ResultsTableData,
     command: TableCommand,
@@ -94,18 +92,19 @@ pub struct QueryScreen {
     copied_cell: Option<(usize, usize, Instant)>,
     select_mode: bool,
     select_values: Vec<(usize, usize)>,
-    sort_column: Option<String>,
+    sort_column: Option<usize>,
     sort_mode: Option<SortMode>,
 }
 
 impl QueryScreen {
-    pub fn new(items: Vec<HashMap<String, DbValue>>, command: TableCommand, query: String) -> Self {
+    pub fn new(items: QueryResult, command: TableCommand, query: String) -> Self {
         let mut table_state = TableState::default();
-        if !items.is_empty() {
+        if !items.rows.is_empty() {
             table_state.select_first();
         }
+
         let table_data = ResultsTableData::new(&items);
-        let visible_indices = (0..items.len()).collect();
+        let visible_indices = (0..items.rows.len()).collect();
 
         Self {
             items,
@@ -126,11 +125,10 @@ impl QueryScreen {
         duration: Duration,
     ) {
         self.table_data = ResultsTableData::default();
-        self.headers = result.headers.clone();
-        self.items = result.into_maps();
-        self.visible_indices = (0..self.items.len()).collect();
+        self.items = result;
+        self.visible_indices = (0..self.items.rows.len()).collect();
         self.table_data =
-            ResultsTableData::new_filtered(&self.items, &self.visible_indices, &self.headers);
+            ResultsTableData::new_filtered(&self.items, &self.visible_indices, &self.items.headers);
         self.query = query;
         self.duration = duration;
         self.exit = false;
@@ -145,7 +143,7 @@ impl QueryScreen {
         self.column_offset = 0;
         self.selected_column = 0;
         self.table_state = TableState::default();
-        if !self.items.is_empty() {
+        if !self.items.rows.is_empty() {
             self.table_state.select_first();
         }
     }
@@ -253,12 +251,12 @@ impl QueryScreen {
     }
 
     fn sort_by_column(&mut self) {
-        let Some(column) = self.selected_column_name() else {
+        let Some(column_index) = self.selected_column_index() else {
             return;
         };
 
-        if self.sort_column.as_deref() != Some(column.as_str()) {
-            self.sort_column = Some(column.clone());
+        if self.sort_column != Some(column_index) {
+            self.sort_column = Some(column_index);
             self.sort_mode = Some(SortMode::Asc);
         } else {
             self.sort_mode = match self.sort_mode {
@@ -268,24 +266,24 @@ impl QueryScreen {
             };
         }
 
-        self.visible_indices = (0..self.items.len()).collect();
+        self.visible_indices.sort_unstable();
         match self.sort_mode {
             Some(SortMode::Asc) => self.visible_indices.sort_by(|left, right| {
                 compare_db_values(
-                    self.items[*left].get(&column),
-                    self.items[*right].get(&column),
+                    self.items.rows[*left].get(column_index),
+                    self.items.rows[*right].get(column_index),
                 )
             }),
             Some(SortMode::Desc) => self.visible_indices.sort_by(|left, right| {
                 compare_db_values(
-                    self.items[*right].get(&column),
-                    self.items[*left].get(&column),
+                    self.items.rows[*right].get(column_index),
+                    self.items.rows[*left].get(column_index),
                 )
             }),
             None => {}
         }
         self.table_data =
-            ResultsTableData::new_filtered(&self.items, &self.visible_indices, &self.headers);
+            ResultsTableData::new_filtered(&self.items, &self.visible_indices, &self.items.headers);
         self.select_values.clear();
         self.copied_cell = None;
     }
@@ -328,29 +326,27 @@ impl QueryScreen {
     }
 
     fn apply_filter(&mut self, filter: &str) {
-        let Some(column) = self.selected_column_name() else {
+        let Some(column_index) = self.selected_column_index() else {
             return;
         };
         let filter = filter.to_lowercase();
-        self.visible_indices = self
-            .items
-            .iter()
-            .enumerate()
-            .filter_map(|(index, row)| {
-                let value = row
-                    .get(&column)
-                    .map_or_else(|| "null".to_string(), format_db_value);
-                (filter.is_empty() || value.to_lowercase().contains(filter.as_str()))
-                    .then_some(index)
-            })
-            .collect();
+
+        self.visible_indices = (0..self.items.rows.len()).collect();
+        self.visible_indices.retain(|index| {
+            let value = self.items.rows[*index]
+                .get(column_index)
+                .map_or_else(|| "null".to_string(), format_db_value);
+            filter.is_empty() || value.to_lowercase().contains(&filter)
+        });
+        self.sort_column = None;
+        self.sort_mode = None;
+        self.select_values.clear();
         self.table_data =
-            ResultsTableData::new_filtered(&self.items, &self.visible_indices, &self.headers);
+            ResultsTableData::new_filtered(&self.items, &self.visible_indices, &self.items.headers);
         self.table_state = TableState::default();
         if !self.visible_indices.is_empty() {
             self.table_state.select_first();
         }
-        //self.value_expanded = false;
         self.copied_cell = None;
     }
 
@@ -368,21 +364,18 @@ impl QueryScreen {
     fn update_selected_value(&mut self) {
         let Some(selected_row) = self
             .selected_item_index()
-            .and_then(|selected| self.items.get(selected))
+            .and_then(|selected| self.items.rows.get(selected))
         else {
             return;
         };
-        let Some(column) = self.selected_column_name() else {
+        let Some(column_index) = self.selected_column_index() else {
             return;
         };
-        let Some(value) = selected_row.get(&column) else {
+        let Some(value) = selected_row.get(column_index) else {
             return;
         };
-        let Some((id_column, id)) = ["Id", "id"]
-            .into_iter()
-            .find_map(|column| selected_row.get(column).map(|value| (column, value)))
-        else {
-            panic!("No id column found in selected row");
+        let Some((id_column, id)) = self.row_id(selected_row) else {
+            return;
         };
         let Some(table) = Self::table_from_query(&self.query) else {
             return;
@@ -391,7 +384,12 @@ impl QueryScreen {
         let file_path = globals::get_global_config_file_path();
         let config = manage::read_config(file_path).unwrap();
         let database = config.get_database_type().unwrap();
-        let update_query = database.update(&table, id_column, id, &[(&column, value)]);
+        let update_query = database.update(
+            &table,
+            id_column,
+            id,
+            &[(self.items.headers[column_index].as_str(), value)],
+        );
         self.event = Some(TableEvent::UpdateValue(format!(
             "-- Save and close to apply this update.\n\
             -- Delete all file to cancel.\n\n\
@@ -420,41 +418,28 @@ impl QueryScreen {
         let database = config.get_database_type().unwrap();
 
         let mut queries = Vec::new();
-
         for (row_index, mut columns) in selected_by_row {
-            let Some(row) = self.items.get(row_index) else {
+            let Some(row) = self.items.rows.get(row_index) else {
                 continue;
             };
-            let Some((id_column, id)) = ["Id", "id"]
-                .into_iter()
-                .find_map(|column| row.get(column).map(|value| (column, value)))
-            else {
+            let Some((id_column, id)) = self.row_id(row) else {
                 continue;
             };
             columns.sort_unstable();
             columns.dedup();
             let values = columns
                 .iter()
-                .filter_map(|column_index| {
-                    let column = headers.get(*column_index)?;
-                    let value = row.get(column)?;
-                    Some((column.as_str(), value))
-                })
+                .filter_map(|&index| Some((headers.get(index)?.as_str(), row.get(index)?)))
                 .collect::<Vec<_>>();
-
             if !values.is_empty() {
                 queries.push(database.update(&table, id_column, id, &values));
             }
         }
-
         if queries.is_empty() {
             return;
         }
-
         self.event = Some(TableEvent::UpdateValue(format!(
-            "-- Save and close to apply these updates.\n\
-            -- Delete all file to cancel.\n\n\
-            {}",
+            "-- Save and close to apply these updates.\n-- Delete all file to cancel.\n\n{}",
             queries.join("\n\n")
         )));
         self.exit();
@@ -483,19 +468,33 @@ impl QueryScreen {
         })
     }
 
-    fn selected_column_name(&self) -> Option<String> {
-        self.items
-            .iter()
-            .flat_map(|row| row.keys().cloned())
-            .into_iter()
-            .nth(self.selected_column)
+    fn row_id<'a>(&'a self, row: &'a [DbValue]) -> Option<(&'a str, &'a DbValue)> {
+        ["Id", "id"].into_iter().find_map(|name| {
+            let index = self
+                .items
+                .headers
+                .iter()
+                .position(|header| header == name)?;
+            Some((self.items.headers[index].as_str(), row.get(index)?))
+        })
+    }
+
+    fn selected_column_index(&self) -> Option<usize> {
+        (self.selected_column < self.items.headers.len()).then_some(self.selected_column)
     }
 
     fn select_table(&mut self) {
         let Some(table_name) = self
             .selected_item_index()
-            .and_then(|selected| self.items.get(selected))
-            .and_then(|row| row.get("table_name"))
+            .and_then(|selected| self.items.rows.get(selected))
+            .and_then(|row| {
+                let index = self
+                    .items
+                    .headers
+                    .iter()
+                    .position(|header| header == "table_name")?;
+                row.get(index)
+            })
             .map(format_db_value)
         else {
             return;
@@ -598,17 +597,17 @@ impl QueryScreen {
     fn selected_value(&self) -> Option<String> {
         let Some(row) = self
             .selected_item_index()
-            .and_then(|selected| self.items.get(selected))
+            .and_then(|selected| self.items.rows.get(selected))
         else {
             return None;
         };
 
-        let Some(header) = self.selected_column_name() else {
+        let Some(header_index) = self.selected_column_index() else {
             return None;
         };
 
         Some(
-            row.get(&header)
+            row.get(header_index)
                 .map(|value| match value {
                     DbValue::Json(json) => serde_json::from_str::<serde_json::Value>(json)
                         .and_then(|value| serde_json::to_string_pretty(&value))
@@ -622,11 +621,11 @@ impl QueryScreen {
     fn selected_value_preview(&self, max_characters: usize) -> Option<String> {
         let row = self
             .selected_item_index()
-            .and_then(|selected| self.items.get(selected))?;
-        let header = self.selected_column_name()?;
+            .and_then(|selected| self.items.rows.get(selected))?;
+        let header_index = self.selected_column_index()?;
 
         Some(
-            row.get(&header)
+            row.get(header_index)
                 .map(|value| format_db_value_preview(value, max_characters))
                 .unwrap_or_else(|| "null".to_string()),
         )
@@ -637,7 +636,6 @@ impl QueryScreen {
             return None;
         }
 
-        let headers = self.table_data.headers.iter().cloned().collect::<Vec<_>>();
         let mut selected_values = self.select_values.clone();
         selected_values.sort_unstable();
 
@@ -654,8 +652,9 @@ impl QueryScreen {
 
             let value = self
                 .items
+                .rows
                 .get(row_index)
-                .and_then(|row| headers.get(column_index).and_then(|header| row.get(header)))
+                .and_then(|row| row.get(column_index))
                 .map(format_db_value)
                 .unwrap_or_else(|| "null".to_string());
             row_values.push(value);
@@ -670,6 +669,58 @@ impl QueryScreen {
 
     fn column_count(&self) -> usize {
         self.table_data.headers.len().max(1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn screen() -> QueryScreen {
+        let mut screen = QueryScreen::default();
+        screen.update_app_results(
+            QueryResult {
+                headers: vec!["name".into(), "id".into()],
+                rows: vec![
+                    vec![DbValue::Text("Grace".into()), DbValue::Integer(3)],
+                    vec![DbValue::Text("Ada".into()), DbValue::Integer(1)],
+                    vec![DbValue::Text("Alan".into()), DbValue::Integer(2)],
+                ],
+            },
+            "SELECT name, id FROM users".into(),
+            Duration::ZERO,
+        );
+        screen
+    }
+
+    #[test]
+    fn sorts_rows_by_column_and_restores_query_order() {
+        let mut screen = screen();
+        assert_eq!(screen.visible_indices, [0, 1, 2]);
+        screen.selected_column = 1;
+        screen.sort_by_column();
+        assert_eq!(screen.visible_indices, [1, 2, 0]);
+        assert_eq!(screen.selected_value().as_deref(), Some("1"));
+        screen.sort_by_column();
+        assert_eq!(screen.visible_indices, [0, 2, 1]);
+        screen.sort_by_column();
+        assert_eq!(screen.visible_indices, [0, 1, 2]);
+        assert_eq!(screen.table_data.headers, ["name", "id"]);
+    }
+
+    #[test]
+    fn filters_each_row_and_preserves_filter_when_sorting() {
+        let mut screen = screen();
+        screen.apply_filter("AL");
+        assert_eq!(screen.visible_indices, [2]);
+        assert_eq!(screen.selected_value().as_deref(), Some("Alan"));
+        screen.sort_by_column();
+        assert_eq!(screen.visible_indices, [2]);
+        let (header, value) = screen.row_id(&screen.items.rows[2]).unwrap();
+        assert_eq!(header, "id");
+        assert!(matches!(value, DbValue::Integer(2)));
+        screen.apply_filter("missing");
+        assert!(screen.selected_value().is_none());
     }
 }
 
@@ -736,7 +787,7 @@ impl Widget for &mut QueryScreen {
                 copied_cell,
                 &self.select_values,
                 self.sort_column
-                    .as_deref()
+                    .and_then(|index| self.items.headers.get(index).map(String::as_str))
                     .zip(self.sort_mode.map(|mode| matches!(mode, SortMode::Asc))),
             ),
             table_area,
@@ -746,7 +797,7 @@ impl Widget for &mut QueryScreen {
         Footer::new(
             &self.command,
             self.duration,
-            &self.items,
+            self.items.rows.len(),
             self.table_data.item_count(),
             self.select_mode,
             self.select_values.len(),

@@ -34,6 +34,7 @@ pub async fn execute_mysql_query(
                 .collect()
         })
         .unwrap_or_default();
+
     let mut parsed_rows = Vec::new();
 
     for row in rows {

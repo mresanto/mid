@@ -36,12 +36,13 @@ async fn execute(
         QueryOutputFormat::Table => {
             let command = table_command.unwrap_or_default();
             let mut current_query = query;
-            let mut app = App::new(Vec::new(), command, current_query.clone());
+            let mut app = App::new(QueryResult::new(), command, current_query.clone());
 
             loop {
                 let (items, duration, _) =
                     execute_query_on_database(current_query.clone(), HistoryRequestType::DQL)
                         .await?;
+
                 app.update_app_results(items, current_query.clone(), duration);
 
                 let event =

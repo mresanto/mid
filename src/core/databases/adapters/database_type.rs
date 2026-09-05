@@ -79,6 +79,10 @@ impl QueryResult {
             .map(|row| self.headers.iter().cloned().zip(row).collect())
             .collect()
     }
+
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 pub trait DatabaseHandler {

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 use ratatui::{
     buffer::Buffer,
@@ -9,12 +9,12 @@ use ratatui::{
 };
 
 use super::super::keybinds_events::KeybindEvents;
-use crate::core::{databases::adapters::database_type::DbValue, query::TableCommand};
+use crate::core::query::TableCommand;
 
 pub(crate) struct Footer<'a> {
     command: &'a TableCommand,
     duration: Duration,
-    items: &'a [HashMap<String, DbValue>],
+    total_count: usize,
     filtered_count: usize,
     select_mode: bool,
     selected_count: usize,
@@ -26,7 +26,7 @@ impl<'a> Footer<'a> {
     pub(crate) fn new(
         command: &'a TableCommand,
         duration: Duration,
-        items: &'a [HashMap<String, DbValue>],
+        total_count: usize,
         filtered_count: usize,
         select_mode: bool,
         selected_count: usize,
@@ -34,7 +34,7 @@ impl<'a> Footer<'a> {
         Self {
             command,
             duration,
-            items,
+            total_count,
             filtered_count,
             select_mode,
             selected_count,
@@ -76,10 +76,10 @@ impl Widget for Footer<'_> {
 
         let mut lines = Line::from(vec![
             "Total Items: ".dark_gray(),
-            self.items.len().to_string().blue(),
+            self.total_count.to_string().blue(),
         ]);
 
-        if self.filtered_count != self.items.len() {
+        if self.filtered_count != self.total_count {
             lines.extend(Line::from(vec![
                 " (filtered: ".dark_gray(),
                 self.filtered_count.to_string().blue(),
