@@ -76,7 +76,7 @@ enum SortMode {
 #[derive(Default)]
 pub struct QueryScreen {
     items: QueryResult,
-    visible_indices: Vec<usize>,
+    visible_headers: Vec<usize>,
     table_data: ResultsTableData,
     command: TableCommand,
     query: String,
@@ -104,11 +104,11 @@ impl QueryScreen {
         }
 
         let table_data = ResultsTableData::new(&items);
-        let visible_indices = (0..items.rows.len()).collect();
+        let visible_headers = (0..items.rows.len()).collect();
 
         Self {
             items,
-            visible_indices,
+            visible_headers,
             table_data,
             command,
             query,
@@ -126,9 +126,9 @@ impl QueryScreen {
     ) {
         self.table_data = ResultsTableData::default();
         self.items = result;
-        self.visible_indices = (0..self.items.rows.len()).collect();
+        self.visible_headers = (0..self.items.rows.len()).collect();
         self.table_data =
-            ResultsTableData::new_filtered(&self.items, &self.visible_indices, &self.items.headers);
+            ResultsTableData::new_filtered(&self.items, &self.visible_headers, &self.items.headers);
         self.query = query;
         self.duration = duration;
         self.exit = false;
@@ -193,7 +193,7 @@ impl QueryScreen {
         if self.goto_popup.is_visible() {
             if let Some(index) = self
                 .goto_popup
-                .handle_key_event(key_event, self.visible_indices.len())
+                .handle_key_event(key_event, self.visible_headers.len())
             {
                 self.table_state.select(Some(index));
             }
@@ -266,15 +266,15 @@ impl QueryScreen {
             };
         }
 
-        self.visible_indices.sort_unstable();
+        self.visible_headers.sort_unstable();
         match self.sort_mode {
-            Some(SortMode::Asc) => self.visible_indices.sort_by(|left, right| {
+            Some(SortMode::Asc) => self.visible_headers.sort_by(|left, right| {
                 compare_db_values(
                     self.items.rows[*left].get(column_index),
                     self.items.rows[*right].get(column_index),
                 )
             }),
-            Some(SortMode::Desc) => self.visible_indices.sort_by(|left, right| {
+            Some(SortMode::Desc) => self.visible_headers.sort_by(|left, right| {
                 compare_db_values(
                     self.items.rows[*right].get(column_index),
                     self.items.rows[*left].get(column_index),
@@ -283,7 +283,7 @@ impl QueryScreen {
             None => {}
         }
         self.table_data =
-            ResultsTableData::new_filtered(&self.items, &self.visible_indices, &self.items.headers);
+            ResultsTableData::new_filtered(&self.items, &self.visible_headers, &self.items.headers);
         self.select_values.clear();
         self.copied_cell = None;
     }
@@ -331,8 +331,8 @@ impl QueryScreen {
         };
         let filter = filter.to_lowercase();
 
-        self.visible_indices = (0..self.items.rows.len()).collect();
-        self.visible_indices.retain(|index| {
+        self.visible_headers = (0..self.items.rows.len()).collect();
+        self.visible_headers.retain(|index| {
             let value = self.items.rows[*index]
                 .get(column_index)
                 .map_or_else(|| "null".to_string(), format_db_value);
@@ -342,9 +342,9 @@ impl QueryScreen {
         self.sort_mode = None;
         self.select_values.clear();
         self.table_data =
-            ResultsTableData::new_filtered(&self.items, &self.visible_indices, &self.items.headers);
+            ResultsTableData::new_filtered(&self.items, &self.visible_headers, &self.items.headers);
         self.table_state = TableState::default();
-        if !self.visible_indices.is_empty() {
+        if !self.visible_headers.is_empty() {
             self.table_state.select_first();
         }
         self.copied_cell = None;
@@ -353,7 +353,7 @@ impl QueryScreen {
     fn selected_item_index(&self) -> Option<usize> {
         self.table_state
             .selected()
-            .and_then(|selected| self.visible_indices.get(selected).copied())
+            .and_then(|selected| self.visible_headers.get(selected).copied())
     }
 
     fn edit_query(&mut self) {
@@ -509,18 +509,18 @@ impl QueryScreen {
     }
 
     fn select_next_row(&mut self) {
-        if self.visible_indices.is_empty() {
+        if self.visible_headers.is_empty() {
             return;
         }
 
         let current_row = self.table_state.selected().unwrap_or(0);
-        let last_row = self.visible_indices.len().saturating_sub(1);
+        let last_row = self.visible_headers.len().saturating_sub(1);
         self.table_state
             .select(Some(current_row.saturating_add(1).min(last_row)));
     }
 
     fn select_previous_row(&mut self) {
-        if self.visible_indices.is_empty() {
+        if self.visible_headers.is_empty() {
             return;
         }
 
@@ -546,13 +546,13 @@ impl QueryScreen {
     }
 
     fn select_first_row(&mut self) {
-        if !self.visible_indices.is_empty() {
+        if !self.visible_headers.is_empty() {
             self.table_state.select_first();
         }
     }
 
     fn select_last_row(&mut self) {
-        if !self.visible_indices.is_empty() {
+        if !self.visible_headers.is_empty() {
             self.table_state.select_last();
         }
     }
@@ -696,15 +696,15 @@ mod tests {
     #[test]
     fn sorts_rows_by_column_and_restores_query_order() {
         let mut screen = screen();
-        assert_eq!(screen.visible_indices, [0, 1, 2]);
+        assert_eq!(screen.visible_headers, [0, 1, 2]);
         screen.selected_column = 1;
         screen.sort_by_column();
-        assert_eq!(screen.visible_indices, [1, 2, 0]);
+        assert_eq!(screen.visible_headers, [1, 2, 0]);
         assert_eq!(screen.selected_value().as_deref(), Some("1"));
         screen.sort_by_column();
-        assert_eq!(screen.visible_indices, [0, 2, 1]);
+        assert_eq!(screen.visible_headers, [0, 2, 1]);
         screen.sort_by_column();
-        assert_eq!(screen.visible_indices, [0, 1, 2]);
+        assert_eq!(screen.visible_headers, [0, 1, 2]);
         assert_eq!(screen.table_data.headers, ["name", "id"]);
     }
 
@@ -712,10 +712,10 @@ mod tests {
     fn filters_each_row_and_preserves_filter_when_sorting() {
         let mut screen = screen();
         screen.apply_filter("AL");
-        assert_eq!(screen.visible_indices, [2]);
+        assert_eq!(screen.visible_headers, [2]);
         assert_eq!(screen.selected_value().as_deref(), Some("Alan"));
         screen.sort_by_column();
-        assert_eq!(screen.visible_indices, [2]);
+        assert_eq!(screen.visible_headers, [2]);
         let (header, value) = screen.row_id(&screen.items.rows[2]).unwrap();
         assert_eq!(header, "id");
         assert!(matches!(value, DbValue::Integer(2)));
