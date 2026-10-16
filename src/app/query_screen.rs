@@ -754,6 +754,7 @@ fn db_value_rank(value: &DbValue) -> u8 {
         DbValue::TextArray(_) => 4,
         DbValue::Json(_) => 5,
         DbValue::DateTime(_) => 6,
+        DbValue::Interval(_) => 7,
     }
 }
 

@@ -1,6 +1,6 @@
 use sqlx::{
     AssertSqlSafe, Column, Row, TypeInfo, ValueRef,
-    postgres::{PgPoolOptions, PgValueFormat},
+    postgres::{PgPoolOptions, PgValueFormat, types::PgInterval},
     types::{Uuid, chrono},
 };
 
@@ -96,6 +96,10 @@ pub async fn execute_postgres_query(
                         "JSONB" => postgres_jsonb(value_ref)
                             .map(DbValue::Json)
                             .unwrap_or(DbValue::Null),
+                        "INTERVAL" => row
+                            .try_get::<PgInterval, _>(index_column)
+                            .map(|value| DbValue::Interval(format_postgres_interval(value)))
+                            .unwrap_or(DbValue::Null),
                         "FLOAT4" | "REAL" => row
                             .try_get::<f32, _>(index_column)
                             .map(|n| DbValue::Float(n as f64))
@@ -157,6 +161,15 @@ fn postgres_jsonb(value: sqlx::postgres::PgValueRef<'_>) -> Option<String> {
             String::from_utf8(bytes.get(1..)?.to_vec()).ok()
         }
     }
+}
+
+/// Render PostgreSQL's binary interval representation without losing any of
+/// its three components (months, days, and microseconds).
+fn format_postgres_interval(value: PgInterval) -> String {
+    format!(
+        "{} mons {} days {} micros",
+        value.months, value.days, value.microseconds
+    )
 }
 
 /// Execute one or more data-modification statements without preparing them.

@@ -64,6 +64,7 @@ pub enum DbValue {
     Float(f64),
     Boolean(bool),
     DateTime(chrono::DateTime<chrono::Utc>),
+    Interval(String),
 }
 
 /// Column names in SELECT order and rows with values at matching indices.

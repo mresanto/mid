@@ -5,6 +5,7 @@ pub(crate) fn format_db_value(value: &DbValue) -> String {
         DbValue::Null => "NULL".to_string(),
         DbValue::Text(value) => value.clone(),
         DbValue::DateTime(value) => value.to_string(),
+        DbValue::Interval(value) => value.clone(),
         DbValue::TextArray(values) => format!("{{{}}}", values.join(",")),
         DbValue::Json(value) => value.clone(),
         DbValue::Numeric(value) => value.clone(),
