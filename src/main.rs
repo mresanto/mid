@@ -45,13 +45,7 @@ async fn main() {
                 name,
                 connection_string,
                 database_type,
-                is_secure,
-            }) => remote_handler::add(
-                name,
-                connection_string.as_deref(),
-                database_type.as_deref(),
-                *is_secure,
-            ),
+            }) => remote_handler::add(name, connection_string.as_deref(), database_type.as_deref()),
             Some(RemoteCommands::Remove { name }) => remote_handler::remove(name),
             Some(RemoteCommands::Switch { name }) => remote_handler::switch(name),
             Some(RemoteCommands::Edit {}) => remote_handler::edit(),
@@ -59,6 +53,7 @@ async fn main() {
             Some(RemoteCommands::Password { name, password }) => {
                 remote_handler::password(name, password)
             }
+            Some(RemoteCommands::Secure { name }) => remote_handler::secure(name),
             Some(RemoteCommands::Local { command }) => match command {
                 Some(LocalCommands::Init) => local_handler::init(),
                 None => {}

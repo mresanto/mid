@@ -100,9 +100,6 @@ pub enum RemoteCommands {
 
         #[arg(short = 't', long)]
         database_type: Option<String>,
-
-        #[arg(short = 's', long)]
-        is_secure: bool,
     },
     Remove {
         #[arg(add = ArgValueCompleter::new(complete_remotes))]
@@ -122,6 +119,10 @@ pub enum RemoteCommands {
         name: String,
         #[arg()]
         password: String,
+    },
+    Secure {
+        #[arg()]
+        name: String,
     },
     #[command(arg_required_else_help = true)]
     Local {

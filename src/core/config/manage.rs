@@ -117,6 +117,25 @@ pub fn add_database(database: DatabaseConfig) -> Result<(), Error> {
     return Ok(());
 }
 
+pub fn update_database(database: DatabaseConfig) -> Result<(), Error> {
+    let mut config = read_config()?;
+
+    if !config.connection_exists(&database.name) {
+        return Err(Error::DatabaseNotFound(database.name));
+    }
+
+    let index = config
+        .databases
+        .iter()
+        .position(|db| db.name == database.name)
+        .unwrap();
+    config.databases[index] = database;
+
+    save_config(config)?;
+
+    return Ok(());
+}
+
 pub fn remove_database(name: String) -> Result<(), Error> {
     let mut config = read_config()?;
 

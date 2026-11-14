@@ -90,6 +90,53 @@ pub fn switch(name: &str) {
     return;
 }
 
+pub fn secure(name: &str) {
+    let mut database = match manage::retrieve_database(name.to_owned()) {
+        Ok(database) => database,
+        Err(error) => {
+            eprintln!("Failed to retrieve database: {error}");
+            return;
+        }
+    };
+
+    if database.is_secure {
+        eprintln!("Database is already secure");
+        return;
+    }
+
+    let sanitized = match sanitize_connection_string(&database.connection_string) {
+        Ok(result) => result,
+        Err(error) => {
+            eprintln!("Error to extract password: {error}");
+            return;
+        }
+    };
+    let password = match extract_password(&database.connection_string) {
+        Ok(password) => password,
+        Err(error) => {
+            eprintln!("{error}");
+            return;
+        }
+    };
+    if SecretManager::new(name.to_owned())
+        .save_password(password)
+        .is_err()
+    {
+        eprintln!("Failed to save remote password in the os manager");
+        return;
+    }
+
+    database.connection_string = sanitized;
+    database.is_secure = true;
+
+    if let Err(error) = manage::update_database(database) {
+        eprintln!("Failed to update database: {error}");
+        return;
+    }
+
+    println!("Remote '{}' is now secure", name);
+}
+
 pub fn password(name: &str, password: &str) {
     let database = match manage::retrieve_database(name.to_owned()) {
         Ok(database) => database,
@@ -114,13 +161,8 @@ pub fn password(name: &str, password: &str) {
     return;
 }
 
-pub fn add(
-    name: &str,
-    connection_string: Option<&str>,
-    database_type: Option<&str>,
-    is_secure: bool,
-) {
-    let mut connection_string = match connection_string {
+pub fn add(name: &str, connection_string: Option<&str>, database_type: Option<&str>) {
+    let connection_string = match connection_string {
         Some(connection_string) => connection_string.to_owned(),
         None if database_type.is_some() => {
             let template = match database_type {
@@ -159,35 +201,10 @@ pub fn add(
         }
     };
 
-    if is_secure {
-        let sanitized = match sanitize_connection_string(&connection_string) {
-            Ok(result) => result,
-            Err(error) => {
-                eprintln!("Error to extract password: {error}");
-                return;
-            }
-        };
-        let password = match extract_password(&connection_string) {
-            Ok(password) => password,
-            Err(error) => {
-                eprintln!("{error}");
-                return;
-            }
-        };
-        if SecretManager::new(name.to_owned())
-            .save_password(password)
-            .is_err()
-        {
-            eprintln!("Failed to save remote password in the os manager");
-            return;
-        }
-        connection_string = sanitized;
-    }
-
     let res = manage::add_database(DatabaseConfig {
         name: name.to_owned(),
-        connection_string,
-        is_secure,
+        connection_string: connection_string,
+        is_secure: false,
     });
 
     match res {
