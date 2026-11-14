@@ -111,21 +111,19 @@ pub enum RemoteCommands {
     },
     Edit,
     Retrieve {
-        #[arg()]
+        #[arg(add = ArgValueCompleter::new(complete_remotes))]
         name: String,
     },
     Password {
-        #[arg()]
-        name: String,
-        #[arg()]
+        #[arg(add = ArgValueCompleter::new(complete_remotes))]
         password: String,
     },
     Secure {
-        #[arg()]
+        #[arg(add = ArgValueCompleter::new(complete_remotes))]
         name: String,
     },
     Unsecure {
-        #[arg()]
+        #[arg(add = ArgValueCompleter::new(complete_remotes))]
         name: String,
     },
     #[command(arg_required_else_help = true)]
