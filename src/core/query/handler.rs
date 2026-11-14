@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    env::current_exe,
+    time::{Duration, Instant},
+};
 
 use crate::{
     app::App,
@@ -62,6 +65,15 @@ async fn execute(
                         if !update_query.trim().is_empty() {
                             execute_query_on_database(update_query, HistoryRequestType::DML)
                                 .await?;
+                        }
+                    }
+                    Some(TableEvent::RefreshQuery) => {
+                        if !current_query.trim().is_empty() {
+                            execute_query_on_database(
+                                current_query.clone(),
+                                HistoryRequestType::DML,
+                            )
+                            .await?;
                         }
                     }
                     Some(TableEvent::OpenSelectedRow(text)) => {

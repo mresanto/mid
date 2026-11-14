@@ -5,6 +5,7 @@ pub mod handler;
 pub enum TableEvent {
     EditQuery(String),
     UpdateValue(String),
+    RefreshQuery,
     SelectTable(String),
     OpenSelectedRow(String),
 }

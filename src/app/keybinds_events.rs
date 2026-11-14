@@ -21,6 +21,7 @@ pub enum KeybindEvents {
     SelectMode,
     OpenValueInSelectMode,
     SortByColumn,
+    Refresh,
 }
 
 impl KeybindEvents {
@@ -52,6 +53,7 @@ impl KeybindEvents {
             KeyCode::Char('f') => Some(Self::Filter),
             KeyCode::Char('o') => Some(Self::OpenValue),
             KeyCode::Char('v') => Some(Self::SelectMode),
+            KeyCode::Char('r') => Some(Self::Refresh),
             _ => None,
         }
     }
@@ -75,6 +77,7 @@ impl KeybindEvents {
             Self::Quit => "q",
             Self::SelectMode => "v",
             Self::OpenValueInSelectMode => "Shift+Enter",
+            Self::Refresh => "r",
         }
     }
 
@@ -97,6 +100,7 @@ impl KeybindEvents {
             Self::Quit => "quit",
             Self::SelectMode => "select mode",
             Self::OpenValueInSelectMode => "open value in select mode",
+            Self::Refresh => "refresh",
         }
     }
 

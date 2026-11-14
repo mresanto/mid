@@ -244,6 +244,7 @@ impl QueryScreen {
                 KeybindEvents::Quit => self.exit(),
                 KeybindEvents::SelectMode => self.select_mode(),
                 KeybindEvents::SortByColumn => self.sort_by_column(),
+                KeybindEvents::Refresh => self.refresh(),
                 _ => {}
             }
         }
@@ -666,6 +667,11 @@ impl QueryScreen {
 
     fn column_count(&self) -> usize {
         self.table_data.headers.len().max(1)
+    }
+
+    fn refresh(&mut self) {
+        self.event = Some(TableEvent::RefreshQuery);
+        self.exit();
     }
 }
 

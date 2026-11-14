@@ -1,5 +1,5 @@
 services:
-  postgres:
+  mid-postgres:
     image: postgres:17-alpine
     container_name: mid-postgres
     restart: unless-stopped
@@ -18,7 +18,7 @@ services:
       timeout: 5s
       retries: 10
 
-  mysql:
+  mid-mysql:
     image: mysql:9
     container_name: mid-mysql
     restart: unless-stopped
