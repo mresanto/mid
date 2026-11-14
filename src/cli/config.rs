@@ -116,6 +116,8 @@ pub enum RemoteCommands {
     },
     Password {
         #[arg(add = ArgValueCompleter::new(complete_remotes))]
+        name: String,
+        #[arg()]
         password: String,
     },
     Secure {
