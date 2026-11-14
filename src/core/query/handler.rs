@@ -1,7 +1,4 @@
-use std::{
-    env::current_exe,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use crate::{
     app::App,
