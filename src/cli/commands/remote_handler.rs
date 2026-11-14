@@ -137,6 +137,35 @@ pub fn secure(name: &str) {
     println!("Remote '{}' is now secure", name);
 }
 
+pub fn unsecure(name: &str) {
+    let mut database = match manage::retrieve_database(name.to_owned()) {
+        Ok(database) => database,
+        Err(error) => {
+            eprintln!("Failed to retrieve database: {error}");
+            return;
+        }
+    };
+    if !database.is_secure {
+        eprintln!("Database is already unsecure");
+        return;
+    }
+    let connection_string =
+        match SecretManager::new(name.to_owned()).connection_string(&database.connection_string) {
+            Ok(connection_string) => connection_string,
+            Err(_) => {
+                eprintln!("Failed to retrieve connection string from the OS secret manager");
+                return;
+            }
+        };
+    database.connection_string = connection_string;
+    database.is_secure = false;
+    if let Err(error) = manage::update_database(database) {
+        eprintln!("Failed to update database: {error}");
+        return;
+    }
+    println!("Remote '{name}' is now unsecure");
+}
+
 pub fn password(name: &str, password: &str) {
     let database = match manage::retrieve_database(name.to_owned()) {
         Ok(database) => database,

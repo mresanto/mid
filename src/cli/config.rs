@@ -124,6 +124,10 @@ pub enum RemoteCommands {
         #[arg()]
         name: String,
     },
+    Unsecure {
+        #[arg()]
+        name: String,
+    },
     #[command(arg_required_else_help = true)]
     Local {
         #[command(subcommand)]

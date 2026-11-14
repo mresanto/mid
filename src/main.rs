@@ -54,6 +54,7 @@ async fn main() {
                 remote_handler::password(name, password)
             }
             Some(RemoteCommands::Secure { name }) => remote_handler::secure(name),
+            Some(RemoteCommands::Unsecure { name }) => remote_handler::unsecure(name),
             Some(RemoteCommands::Local { command }) => match command {
                 Some(LocalCommands::Init) => local_handler::init(),
                 None => {}
