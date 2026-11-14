@@ -467,13 +467,24 @@ impl QueryScreen {
     }
 
     fn row_id<'a>(&'a self, row: &'a [DbValue]) -> Option<(&'a str, &'a DbValue)> {
-        ["Id", "id"].into_iter().find_map(|name| {
+        let id = ["Id", "id"].into_iter().find_map(|name| {
             let index = self
                 .items
                 .headers
                 .iter()
                 .position(|header| header == name)?;
-            Some((self.items.headers[index].as_str(), row.get(index)?))
+            let value = row.get(index)?;
+            let empty = matches!(value, DbValue::Null)
+                || matches!(value, DbValue::Text(text) if text.is_empty());
+            (!empty).then_some((self.items.headers[index].as_str(), value))
+        });
+
+        id.or_else(|| {
+            self.items
+                .headers
+                .first()
+                .zip(row.first())
+                .map(|(header, value)| (header.as_str(), value))
         })
     }
 

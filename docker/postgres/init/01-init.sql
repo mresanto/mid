@@ -14,6 +14,14 @@ CREATE TABLE IF NOT EXISTS orders (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS tst_users (
+  uiad SERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  email VARCHAR(150) NOT NULL UNIQUE,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 INSERT INTO users (name, email, active)
 VALUES
   ('Ada Lovelace', 'ada@example.com', TRUE),
@@ -31,3 +39,10 @@ FROM (
     ('alan@example.com', 12.30, 'cancelled')
 ) AS orders(email, total, status)
 JOIN users ON users.email = orders.email;
+
+INSERT INTO tst_users (name, email, active)
+VALUES
+  ('Ada Lovelace', 'ada@example.com', TRUE),
+  ('Grace Hopper', 'grace@example.com', TRUE),
+  ('Alan Turing', 'alan@example.com', FALSE)
+ON CONFLICT (email) DO NOTHING;

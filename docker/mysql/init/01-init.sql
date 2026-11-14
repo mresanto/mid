@@ -15,6 +15,14 @@ CREATE TABLE IF NOT EXISTS orders (
   CONSTRAINT fk_orders_user_id FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS tst_users (
+  uiad INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  email VARCHAR(150) NOT NULL UNIQUE,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 INSERT IGNORE INTO users (name, email, active)
 VALUES
   ('Ada Lovelace', 'ada@example.com', TRUE),
@@ -30,3 +38,9 @@ FROM (
   UNION ALL SELECT 'alan@example.com', 12.30, 'cancelled'
 ) AS seeded_orders
 JOIN users ON users.email = seeded_orders.email;
+
+INSERT IGNORE INTO tst_users (name, email, active)
+VALUES
+  ('Ada Lovelace', 'ada@example.com', TRUE),
+  ('Grace Hopper', 'grace@example.com', TRUE),
+  ('Alan Turing', 'alan@example.com', FALSE);
