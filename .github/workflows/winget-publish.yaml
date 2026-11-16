@@ -1,102 +1,57 @@
-name: winget-publish
+
+name: Publish WinGet Update
 
 on:
-  # workflow_run:
-  #   workflows: ["cli-release"]
-  #   types: [completed]
+  release:
+    types: [published]
+
   workflow_dispatch:
-    inputs:
-      tag:
-        description: "Release tag to submit (ex. v1.0.0)"
-        required: true
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   winget:
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v'))
+    name: Update WinGet Package
     runs-on: windows-latest
-    env:
-      TAG: ${{ github.event.inputs.tag || github.event.workflow_run.head_branch }}
+
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.tag || github.event.workflow_run.head_branch }}
-
-      - name: Validate release tag
-        shell: bash
+      - name: Download WingetCreate
+        shell: pwsh
         run: |
-          set -euo pipefail
-          echo "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$' \
-            || { echo "::error::unexpected tag format: '$TAG'"; exit 1; }
+          Invoke-WebRequest `
+            -Uri "https://aka.ms/wingetcreate/latest" `
+            -OutFile "wingetcreate.exe"
 
-      - name: Compare our pinned schema vs winget's latest
-        id: schema
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-
-          set -euo pipefail
-          pinned=$(grep -oE 'winget-manifest\.installer\.[0-9]+\.[0-9]+\.[0-9]+' \
-            packaging/winget/mresanto.mid.installer.yaml.tmpl \
-            | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-          latest=$(gh api repos/microsoft/winget-cli/contents/schemas/JSON/manifests \
-            --jq '.[].name' | sed 's/^v//' \
-            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
-          [ -n "$pinned" ] && [ -n "$latest" ] || { echo "could not resolve schema versions (pinned='$pinned' latest='$latest')"; exit 1; }
-          echo "pinned=$pinned" >> "$GITHUB_OUTPUT"
-          echo "latest=$latest" >> "$GITHUB_OUTPUT"
-          if [ "$pinned" = "$latest" ]; then echo "match=yes" >> "$GITHUB_OUTPUT"; else echo "match=no" >> "$GITHUB_OUTPUT"; fi
-          echo "pinned=$pinned  latest=$latest"
-
-      - name: Schema bumped — file a review issue, skip auto-submit
-        if: steps.schema.outputs.match != 'yes'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PINNED: ${{ steps.schema.outputs.pinned }}
-          LATEST: ${{ steps.schema.outputs.latest }}
-        run: |
-          set -euo pipefail
-          # De-dupe: if an open issue already tracks this exact bump, do nothing.
-          existing=$(gh issue list --state open --search "in:title winget schema $LATEST" --json number --jq 'length')
-          if [ "$existing" != "0" ]; then echo "review issue for schema $LATEST already open"; exit 0; fi
-          {
-            echo "Auto winget submission for **$TAG** was paused."
-            echo
-            echo "microsoft/winget-cli manifest schema is now **$LATEST**, but our templates in \`packaging/winget/*.tmpl\` target **$PINNED**."
-            echo
-            echo "**Action:** review the $LATEST schema for added/changed/required fields, update the three \`packaging/winget/*.tmpl\` files (schema URLs + \`ManifestVersion\`), then submit manually:"
-            echo
-            echo '```'
-            echo "wingetcreate update mresanto.mid --version ${TAG#v} --submit"
-            echo '```'
-            echo
-            echo "Once the templates target $LATEST, this workflow auto-submits again until the next schema bump."
-          } > body.md
-          gh issue create --title "winget schema $LATEST released — review before publishing $TAG (templates at $PINNED)" --body-file body.md
-
-      - name: Submit winget-pkgs PR (schema unchanged)
-        if: steps.schema.outputs.match == 'yes'
+      - name: Submit WinGet update
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_ID: YourPublisher.YourPackage
+          ASSET_NAME: my-cli-x86_64-pc-windows-msvc.zip
         run: |
-          $ErrorActionPreference = "Stop"
-          if ([string]::IsNullOrWhiteSpace($env:GH_TOKEN)) {
-            throw "WINGET_TOKEN secret is not set"
+          $tag = "${{ github.event.release.tag_name }}"
+
+          if (-not $tag) {
+            $tag = gh release view --json tagName `
+              --jq '.tagName'
           }
-          winget install --id Microsoft.WingetCreate --source winget `
-            --accept-source-agreements --accept-package-agreements
-          $version = $env:TAG.TrimStart('v')
-          $url = "https://github.com/mresanto/mid/releases/download/$env:TAG/mid-x86_64-pc-windows-msvc.zip"
-          wingetcreate update mresanto.mid `
+
+          $version = $tag -replace '^v', ''
+
+          $url = "https://github.com/${{ github.repository }}/releases/download/$tag/$env:ASSET_NAME"
+
+          if (-not $env:WINGET_TOKEN) {
+            throw "Missing WINGET_TOKEN secret"
+          }
+
+          Write-Host "Package: $env:PACKAGE_ID"
+          Write-Host "Version: $version"
+          Write-Host "Installer: $url"
+
+          .\wingetcreate.exe update $env:PACKAGE_ID `
             --version $version `
             --urls $url `
             --submit `
-            --token $env:GH_TOKEN
+            --token $env:WINGET_TOKEN
