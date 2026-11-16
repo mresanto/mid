@@ -33,7 +33,7 @@ jobs:
           WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
           GH_TOKEN: ${{ github.token }}
           PACKAGE_ID: mresanto.mid
-          ASSET_NAME: mid-x86_64-pc-windows-msvc.zip
+          ASSET_NAME: mid_msvc.exe
         run: |
           $tag = "${{ github.event.inputs.tag || github.event.release.tag_name }}"
 
