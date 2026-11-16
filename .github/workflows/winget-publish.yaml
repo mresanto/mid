@@ -44,6 +44,7 @@ jobs:
           $version = $tag -replace '^v', ''
 
           $url = "https://github.com/${{ github.repository }}/releases/download/$tag/$env:ASSET_NAME"
+          $url = "$url|x64|user"
 
           if (-not $env:WINGET_TOKEN) {
             throw "Missing WINGET_TOKEN secret"
