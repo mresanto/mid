@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
+
+PackageIdentifier: mresanto.mid
+PackageVersion: "@VERSION@"
+
+Installers:
+  - Architecture: x64
+    InstallerType: portable
+    InstallerUrl: https://github.com/mresanto/mid/releases/download/v@VERSION@/mid-x86_64-pc-windows-msvc.zip
+    InstallerSha256: "@SHA_WINDOWS@"
+    Commands:
+      - mid
+
+ManifestType: installer
+ManifestVersion: 1.12.0
+Scope: user
+ReleaseDate: "@RELEASE_DATE@"
